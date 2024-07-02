@@ -1,7 +1,7 @@
 import numpy as np
 from nexusformat.nexus import *
 
-filename = '/Users/rosborn/Documents/Computing/Repositories/nexpy/src/nexpy/examples/chopper.nxs'
+filename = 'chopper.nxs'
 
 
 class GroupValidator():
