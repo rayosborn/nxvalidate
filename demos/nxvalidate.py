@@ -113,8 +113,9 @@ def report_items(fp, token):
     tree = ET.parse(fp)
     root = tree.getroot()
     # Lookup some header metadata
-    extends = root.attrib["extends"]
-    print("%s extends %s" % (token, extends))
+    if "extends" in root.attrib:
+        extends = root.attrib["extends"]
+        print("%s extends %s" % (token, extends))
     # These will be our "rules":
     groups = []
     attributes = []
