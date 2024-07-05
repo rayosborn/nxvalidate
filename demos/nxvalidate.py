@@ -44,7 +44,7 @@ def setup_logger(logger):
 
 
 def load_defaults():
-    """ Set up default settings from environment """
+    """ Look up default settings from environment """
     settings = {}
     settings["definitions"] = env_default("NEXUS_DEFINITIONS")
     return settings
@@ -80,11 +80,16 @@ def parse_args():
 
 
 def apply_args(logger, args, settings):
+    """
+    Apply any arguments
+    overwriting any defaults from the environment
+    """
     if "l" in args:
         settings["definitions"] = args.l
 
 
 def do_command(logger, args, settings):
+    """ Branch into the user command """
     if args.command == "report":
         do_report(logger, args, settings)
     # TODO: Add other commands here
@@ -109,6 +114,7 @@ def do_report(logger, args, settings):
 
 
 def report_items(fp, token):
+    """ Actually scan the XML and print the report """
     # Parse the XML:
     tree = ET.parse(fp)
     root = tree.getroot()
