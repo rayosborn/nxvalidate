@@ -55,3 +55,5 @@ NXentry may contain these 18 fields:
          revision
          pre_sample_flightpath
 ----
+
+You can also set environment variable `NEXUS_DEFINITIONS` to avoid the clunky `-l definitions` argument.
