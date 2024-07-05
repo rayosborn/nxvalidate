@@ -151,8 +151,12 @@ def get_base_classes(settings):
     if settings["definitions"] is None:
         raise UserError("application definition directory " +
                         "not specified!")
+    if not os.path.exists(settings["definitions"]):
+        raise UserError("given definitions do not exist!")
     p = settings["definitions"] + "/../base_classes"
     base_classes = os.path.abspath(p)
+    if not os.path.exists(base_classes):
+        raise UserError("base_classes do not exist!")
     return base_classes
 
 
