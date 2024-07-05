@@ -104,7 +104,6 @@ def do_report(logger, args, settings):
         with open(xml_file) as fp:
             report_items(fp, token)
     except FileNotFoundError as e:
-        print(str(e.__dir__()))
         raise UserError("could not open XML definition: " +
                         e.filename)
 
