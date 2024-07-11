@@ -1,7 +1,10 @@
 import numpy as np
 from nexusformat.nexus import *
+import os
+import sys
+from xml1 import get_valid_entries
 
-filename = 'chopper.nxs'
+filename = 'demos/chopper.nxs'
 
 
 class GroupValidator():
@@ -16,16 +19,17 @@ class GroupValidator():
             self.validator = None
 
     def get_valid_groups(self):
-        if self.group.nxclass == 'NXentry':
-            return ['NXsample']
-        else:
-            return []
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Is there a method to access the name similar to how we can access the nxclass?
+        file = str(self.group.nxclass) + ".nxdl.xml"
+        filepath = os.path.join(current_dir, '..', 'definitions', 'base_classes', file)
+        return get_valid_entries(filepath, 'group')
 
     def get_valid_fields(self):
-        if self.group.nxclass == 'NXsample':
-            return ['temperature', 'chemical_formula']
-        else:
-            return []
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        file = str(self.group.nxclass) + ".nxdl.xml"
+        filepath = os.path.join(current_dir, '..', 'definitions', 'base_classes', file)
+        return get_valid_entries(filepath, 'field')
 
     def validate(self):
         if self.validator is not None:

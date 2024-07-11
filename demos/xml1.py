@@ -28,14 +28,14 @@ def get_valid_entries(file_path, tag):
     
     return valid_list 
 
-fields = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'field')
-for name in fields:
-    print(name)
+# fields = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'field')
+# for name in fields:
+#     print(name)
     
-groups = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'group')
-for type in groups:
-    print(type)
+# groups = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'group')
+# for type in groups:
+#     print(type)
     
-attributes = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'attribute')
+# attributes = get_valid_entries('/Users/kaitlyn/Desktop/argonne/nxvalidate/definitions/base_classes/NXsample.nxdl.xml', 'attribute')
 
 
