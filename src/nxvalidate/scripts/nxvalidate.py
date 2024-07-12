@@ -7,10 +7,10 @@ NXVALIDATE PY
 import logging
 import os
 import sys
-
 import xml.etree.ElementTree as ET
+from importlib.resources import files as package_files
 
-from nxvalidate.validate import GroupValidator, FieldValidator, validate
+from nxvalidate.validate import FieldValidator, GroupValidator, validate
 
 
 def main():
@@ -105,8 +105,8 @@ def do_report(logger, args, settings):
     token = args.extras[0]
     logger.debug("requested: '%s'" % token)
     base_classes = get_base_classes(settings)
-    xml_file = base_classes + "/" + token + ".nxdl.xml"
-    logger.debug("open: " + xml_file)
+    xml_file = base_classes.joinpath(f"{token}.nxdl.xml")
+    logger.debug("open: " + str(xml_file))
     try:
         with open(xml_file) as fp:
             report_items(fp, token)
@@ -156,15 +156,7 @@ def report_items(fp, token):
 
 def get_base_classes(settings):
     """ Find the directory named base_classes """
-    if settings["definitions"] is None:
-        raise UserError("application definition directory " +
-                        "not specified!")
-    if not os.path.exists(settings["definitions"]):
-        raise UserError("given definitions do not exist!")
-    p = settings["definitions"] + "/../base_classes"
-    base_classes = os.path.abspath(p)
-    if not os.path.exists(base_classes):
-        raise UserError("base_classes do not exist!")
+    base_classes = package_files('nxvalidate.definitions.base_classes')
     return base_classes
 
 

@@ -1,17 +1,17 @@
 import xml
 import xml.etree.ElementTree as ET
-from importlib.resources import files
+from importlib.resources import files as package_files
 
 import numpy as np
 from nexusformat.nexus import *
 
-filename = files('nxvalidate.examples').joinpath('chopper.nxs')
+filename = package_files('nxvalidate.examples').joinpath('chopper.nxs')
 valid_groups = {}
 
 def get_valid_entries(base_class, tag):
     valid_list = []
 
-    file_path = files('nxvalidate.definitions.base_classes').joinpath(
+    file_path = package_files('nxvalidate.definitions.base_classes').joinpath(
         f'{base_class}.nxdl.xml')
     if file_path.exists():
         tree = ET.parse(file_path)
