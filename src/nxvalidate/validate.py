@@ -1,4 +1,5 @@
 import xml
+import logging
 import xml.etree.ElementTree as ET
 from importlib.resources import files as package_files
 
@@ -8,38 +9,52 @@ from nexusformat.nexus import *
 filename = package_files('nxvalidate.examples').joinpath('chopper.nxs')
 valid_groups = {}
 
-def get_valid_entries(base_class, tag):
-    valid_list = []
 
-    file_path = package_files('nxvalidate.definitions.base_classes').joinpath(
-        f'{base_class}.nxdl.xml')
-    if file_path.exists():
-        tree = ET.parse(file_path)
-    else:
-        return valid_list        
-    root = tree.getroot()
-    
-    if tag.lower() == 'field':
-        valid_list = []
-        for field in root.findall('.//{http://definition.nexusformat.org/nxdl/3.1}field'):
-            name = field.get('name')
-            if name:
-                valid_list.append(name)       
-                     
-    elif tag.lower() == 'group':
-        valid_list = []
-        for group in root.findall('.//{http://definition.nexusformat.org/nxdl/3.1}group'):
-            type = group.get('type')
-            if type:
-                valid_list.append(type)
-    else:
-        print('Invalid function argument: must be field or group')
-    
-    return valid_list 
+class Validator():
 
-class GroupValidator():
+    def __init__(self):
+        self.logger = logging.getLogger('nxvalidate')
+        # Add a stream handler and customize the logger 
+
+    def get_valid_entries(base_class, tag):
+        valid_list = []
+
+        file_path = package_files('nxvalidate.definitions.base_classes').joinpath(
+                f'{base_class}.nxdl.xml')
+        if file_path.exists():
+            tree = ET.parse(file_path)
+        else:
+            return valid_list        
+        root = tree.getroot()
+        
+        namespace = root.tag.split('}')[0][1:]
+    
+        if tag == 'Field' or tag == 'field':
+            valid_list = []
+            for field in root.findall('.//{%s}field' % namespace):
+                name = field.get('name')
+                if name:
+                    valid_list.append(name)       
+                        
+        elif tag == 'Group' or tag == 'group':
+            valid_list = []
+            for group in root.findall('.//{%s}group' % namespace):
+                type = group.get('type')
+                if type:
+                    valid_list.append(type)
+
+        elif tag.lower() == 'attribute':
+            valid_list = []
+            for attribute in root.findall('.//{%s}attribute' % namespace):
+                name = attribute.get('name')
+                if name:
+                    valid_list.append(name)
+        return valid_list 
+
+class GroupValidator(Validator):
 
     def __init__(self, group):
+        super().__init__()
         self.group = group
         self.nxclass = self.group.nxclass
         self.valid_fields = self.get_valid_fields()
@@ -53,33 +68,34 @@ class GroupValidator():
         if self.nxclass in valid_groups:
             return valid_groups[self.nxclass]
         try:
-            valid_groups[self.nxclass] = get_valid_entries(self.nxclass, 'group')
+            valid_groups[self.nxclass] = self.get_valid_entries(self.nxclass, 'group')
             return valid_groups[self.nxclass]
         except Exception as error:
             return []
 
     def get_valid_fields(self):
-        return get_valid_entries(self.nxclass, 'field')
+        return self.get_valid_entries(self.nxclass, 'field')
 
     def validate(self):
         if self.validator is not None:
             if self.nxclass in self.validator.valid_groups:
-                print(f'{self.group.nxname}:{self.group.nxclass}')
+                self.logger.info(f'{self.group.nxname}:{self.group.nxclass}')
             else:
-                print(f'{self.group.nxname} unspecified')
+                self.logger.info(f'{self.group.nxname} unspecified')
 
 
-class FieldValidator():
+class FieldValidator(Validator):
 
     def __init__(self, field):
+        super().__init__()
         self.field = field
         self.validator = GroupValidator(self.field.nxgroup)
 
     def validate(self):
         if self.field.nxname in self.validator.valid_fields:
-            print(f'{self.field.nxname}: value={self.field.nxvalue}')
+            self.logger.info(f'{self.field.nxname}: value={self.field.nxvalue}')
         else:
-            print(f'{self.field.nxname} unspecified')
+            self.logger.info(f'{self.field.nxname} unspecified')
 
 
 def validate():

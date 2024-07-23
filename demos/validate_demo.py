@@ -20,7 +20,6 @@ class GroupValidator():
 
     def get_valid_groups(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Is there a method to access the name similar to how we can access the nxclass?
         file = str(self.group.nxclass) + ".nxdl.xml"
         filepath = os.path.join(current_dir, '..', 'definitions', 'base_classes', file)
         return get_valid_entries(filepath, 'group')
