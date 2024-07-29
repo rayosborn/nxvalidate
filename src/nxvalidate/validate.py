@@ -10,12 +10,18 @@ filename = package_files('nxvalidate.examples').joinpath('chopper.nxs')
 valid_groups = {}
 
 
+# Validator superclass 
 class Validator():
 
     def __init__(self):
+        # Added logger to Validator superclass
         self.logger = logging.getLogger('nxvalidate')
-        # Add a stream handler and customize the logger 
-
+        self.logger.setLevel(logging.DEBUG)
+        self.stream_handler = logging.StreamHandler(stream=sys.stdout)
+        self.formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        self.stream_handler.setFormatter(self.formatter)
+        self.logger.addHandler(self.stream_handler)
+        
     def get_valid_entries(base_class, tag):
         valid_list = []
 
@@ -28,33 +34,36 @@ class Validator():
         root = tree.getroot()
         
         namespace = root.tag.split('}')[0][1:]
+        # Changed string handling 
     
-        if tag == 'Field' or tag == 'field':
+        if tag.lower() == 'field':
             valid_list = []
             for field in root.findall('.//{%s}field' % namespace):
                 name = field.get('name')
                 if name:
                     valid_list.append(name)       
                         
-        elif tag == 'Group' or tag == 'group':
+        elif tag.lower() ==  'group':
             valid_list = []
             for group in root.findall('.//{%s}group' % namespace):
                 type = group.get('type')
                 if type:
                     valid_list.append(type)
 
+        # Added attributes method 
         elif tag.lower() == 'attribute':
             valid_list = []
             for attribute in root.findall('.//{%s}attribute' % namespace):
                 name = attribute.get('name')
                 if name:
                     valid_list.append(name)
+        
         return valid_list 
 
 class GroupValidator(Validator):
 
     def __init__(self, group):
-        super().__init__()
+        super().__init__() # Inherits from Validator superlcass 
         self.group = group
         self.nxclass = self.group.nxclass
         self.valid_fields = self.get_valid_fields()
@@ -87,7 +96,7 @@ class GroupValidator(Validator):
 class FieldValidator(Validator):
 
     def __init__(self, field):
-        super().__init__()
+        super().__init__() # Inherits from Validator superlcass
         self.field = field
         self.validator = GroupValidator(self.field.nxgroup)
 
@@ -108,7 +117,7 @@ def validate():
                 validator = FieldValidator(item)
             if validator is not None:
                 validator.validate()
-
+                
 
 if __name__ == "__main__":
     validate()

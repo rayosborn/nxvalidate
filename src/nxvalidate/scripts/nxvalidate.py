@@ -77,6 +77,9 @@ def parse_args():
                         help="one of: 'report' or ...")
     parser.add_argument("extras", nargs="*",
                         help="Additional arguments")
+    # Check command 
+    parser.add_argument("check", 
+                        help = "Validate files")
     args = parser.parse_args()
     return args
 
@@ -94,8 +97,15 @@ def do_command(logger, args, settings):
     """ Branch into the user command """
     if args.command == "report":
         do_report(logger, args, settings)
+    elif args.command == "check":
+        do_check(logger, args)
     # TODO: Add other commands here
 
+def do_check(logger, args):
+    logger.info("do_check...") 
+    token = args.extras[0]
+    xml_file = base_classes.joinpath(f"{token}.nxdl.xml")
+    validate(xml_file)
 
 def do_report(logger, args, settings):
     """ Execute the report """
@@ -152,19 +162,16 @@ def report_items(fp, token):
           (token, len(fields)))
     for field in fields:
         print("\t " + field)
-
-
+        
 def get_base_classes(settings):
     """ Find the directory named base_classes """
     base_classes = package_files('nxvalidate.definitions.base_classes')
     return base_classes
 
-
 def get_tail(s):
     """ Remove the namespace portion from the XML tag """
     tokens = s.split("}")
     return tokens[1]
-
 
 if __name__ == "__main__":
     main()

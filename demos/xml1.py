@@ -5,8 +5,7 @@ import xml
 import h5py 
 import xml.etree.ElementTree as ET
 from importlib.resources import files as package_files
-
-
+import nxvalidate
 
 filename = package_files('nxvalidate.examples').joinpath('chopper.nxs')
 valid_groups = {}
