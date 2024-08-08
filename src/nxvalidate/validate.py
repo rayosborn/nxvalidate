@@ -1,4 +1,5 @@
 import xml
+import sys 
 import logging
 import xml.etree.ElementTree as ET
 from importlib.resources import files as package_files
@@ -6,24 +7,24 @@ from importlib.resources import files as package_files
 import numpy as np
 from nexusformat.nexus import *
 
-filename = package_files('nxvalidate.examples').joinpath('chopper.nxs')
-valid_groups = {}
+# Global dictionary of validators 
+validators = {}
 
+def get_validator(nxclass):
+    if nxclass not in validators: 
+        validators[nxclass] = GroupValidator(nxclass)
+    return validators[nxclass]
 
-# Validator superclass 
 class Validator():
 
     def __init__(self):
-        # Added logger to Validator superclass
         self.logger = logging.getLogger('nxvalidate')
         self.logger.setLevel(logging.DEBUG)
         self.stream_handler = logging.StreamHandler(stream=sys.stdout)
-        self.formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        self.stream_handler.setFormatter(self.formatter)
         self.logger.addHandler(self.stream_handler)
         
-    def get_valid_entries(base_class, tag):
-        valid_list = []
+    def get_valid_entries(self, base_class, tag):
+        valid_list = {}
 
         file_path = package_files('nxvalidate.definitions.base_classes').joinpath(
                 f'{base_class}.nxdl.xml')
@@ -34,25 +35,38 @@ class Validator():
         root = tree.getroot()
         
         namespace = root.tag.split('}')[0][1:]
-        # Changed string handling 
     
         if tag.lower() == 'field':
-            valid_list = []
+            valid_list = {}
             for field in root.findall('.//{%s}field' % namespace):
                 name = field.get('name')
                 if name:
-                    valid_list.append(name)       
+                    valid_list[name] = [] 
+                    
+                    type = field.get('type')
+                    min_occurs = field.get('minOccurs')
+                    
+                    if type: 
+                        valid_list[name].append({'type': type})     
+                    if min_occurs:
+                        valid_list[name].append({'minOccurs': int(min_occurs)})
+     
                         
         elif tag.lower() ==  'group':
-            valid_list = []
+            valid_list = {}
             for group in root.findall('.//{%s}group' % namespace):
                 type = group.get('type')
                 if type:
-                    valid_list.append(type)
+                    valid_list[type] = []
+                    
+                    min_occurs = group.get('minOccurs')
+                    
+                    if min_occurs:
+                        valid_list[type].append({'minOccurs': int(min_occurs)})
+                    
 
-        # Added attributes method 
         elif tag.lower() == 'attribute':
-            valid_list = []
+            valid_list = [] # List instead of dictionary
             for attribute in root.findall('.//{%s}attribute' % namespace):
                 name = attribute.get('name')
                 if name:
@@ -62,62 +76,82 @@ class Validator():
 
 class GroupValidator(Validator):
 
-    def __init__(self, group):
-        super().__init__() # Inherits from Validator superlcass 
-        self.group = group
-        self.nxclass = self.group.nxclass
+    def __init__(self, nxclass):
+        super().__init__() 
+        self.nxclass = nxclass 
         self.valid_fields = self.get_valid_fields()
         self.valid_groups = self.get_valid_groups()
-        if self.group.nxgroup:
-            self.validator = GroupValidator(self.group.nxgroup)
-        else:
-            self.validator = None
+        self.valid_attributes = self.get_valid_attributes()
 
-    def get_valid_groups(self):
-        if self.nxclass in valid_groups:
-            return valid_groups[self.nxclass]
-        try:
-            valid_groups[self.nxclass] = self.get_valid_entries(self.nxclass, 'group')
-            return valid_groups[self.nxclass]
-        except Exception as error:
-            return []
+        # if self.group.nxgroup:
+        #     self.validator = GroupValidator(self.group.nxgroup) 
+        # else:
+        #     self.validator = None
 
     def get_valid_fields(self):
         return self.get_valid_entries(self.nxclass, 'field')
+    
+    def get_valid_groups(self):
+        return self.get_valid_entries(self.nxclass, 'group')
+    
+    def get_valid_attributes(self):
+        return self.get_valid_entries(self.nxclass, 'attribute')
 
-    def validate(self):
-        if self.validator is not None:
-            if self.nxclass in self.validator.valid_groups:
-                self.logger.info(f'{self.group.nxname}:{self.group.nxclass}')
+    def validate(self, group): 
+        for attribute in group.attrs:
+            
+            if attribute in self.valid_attributes:
+                self.logger.info(f'{attribute} is a valid attribute of {group.nxpath}')
             else:
-                self.logger.info(f'{self.group.nxname} unspecified')
-
+                self.logger.info(f'{attribute} not defined')
+                
+        # group is the item 
+        for entry in group.entries: # entries is a dictionary of all the items 
+            item = group.entries[entry]
+            if entry in self.valid_fields:
+                if self.valid_fields[entry] != []:  
+                    self.logger.info(f'{entry}:{self.valid_fields[entry]} is a valid member of {group.nxpath}')
+                else:
+                    self.logger.info(f'{entry} is a valid member of {group.nxpath}')
+                # self.check_type()
+            elif item.nxclass in self.valid_groups:
+                self.logger.info(f'{entry}:{item.nxclass} is a valid member of {group.nxpath}')
+            else:
+                self.logger.info(f'{entry} not defined')
+                
+            # do another check for if the type that's defined in the group is the right type 
+            # for NXfield 
+            # valid fields ought to be a dictionary where the key is the field name and the entry is the field type 
+            # print('f{entry}:{valid_fields[entry]} is a valid field)
 
 class FieldValidator(Validator):
 
-    def __init__(self, field):
-        super().__init__() # Inherits from Validator superlcass
-        self.field = field
+    def __init__(self):
+        super().__init__() 
         self.validator = GroupValidator(self.field.nxgroup)
+        self.valid_attributes = self.get_valid_attributes()
 
-    def validate(self):
-        if self.field.nxname in self.validator.valid_fields:
-            self.logger.info(f'{self.field.nxname}: value={self.field.nxvalue}')
-        else:
-            self.logger.info(f'{self.field.nxname} unspecified')
+    def validate(self, field):
+        for attribute in field.attrs:
+            if attribute in self.valid_attributes:
+                self.logger.info(f'{attribute} is a valid attribute of {field.nxpath}')
+            else:
+                self.logger.info(f'{attribute} not defined')
 
 
-def validate():
+def validate(filename):
 
     with nxopen(filename) as root:
-        for item in root.walk():
-            if isinstance(item, NXgroup):
-                validator = GroupValidator(item)
-            elif isinstance(item, NXfield):
-                validator = FieldValidator(item)
-            if validator is not None:
-                validator.validate()
+        for item in root.walk(): # go through every item in group
+            if isinstance(item, NXgroup): # if the item is an NXgroup
+                validator = get_validator(item.nxclass) # get the validator for that particular class of that group this returns the NXsample version of that validator
+                validator.validate(item) # let's validate the item itself which is the group
+                # when you call the validate function you are validating the item knowing the information the validator stores about the class 
+           
+            # elif isinstance(item, NXfield):
+            #     validator = FieldValidator(item)
                 
 
 if __name__ == "__main__":
-    validate()
+    chopper = '/Users/kaitlyn/Desktop/argonne/nxvalidate/demos/chopper.nxs'
+    validate(chopper)

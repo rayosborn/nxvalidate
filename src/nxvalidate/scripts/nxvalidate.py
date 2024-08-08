@@ -16,7 +16,7 @@ from nxvalidate.validate import FieldValidator, GroupValidator, validate
 def main():
     """ Outline of program """
     logger = logging.getLogger("nxvalidate")
-    setup_logger(logger)
+    # setup_logger(logger)
     logger.info("NXVALIDATE")
     settings = load_defaults()
     args = parse_args()
@@ -33,16 +33,16 @@ class UserError(Exception):
     pass
 
 
-def setup_logger(logger):
-    """ Set up the logger for development use """
-    logger.setLevel(logging.DEBUG)
-    h = logging.StreamHandler(stream=sys.stdout)
-    fmtr = logging.Formatter(
-            "%(asctime)s %(name)s %(levelname)-5s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S")
-    h.setFormatter(fmtr)
-    logger.addHandler(h)
-    return logger
+# def setup_logger(logger):
+#     """ Set up the logger for development use """
+#     logger.setLevel(logging.DEBUG)
+#     h = logging.StreamHandler(stream=sys.stdout)
+#     fmtr = logging.Formatter(
+#             "%(asctime)s %(name)s %(levelname)-5s %(message)s",
+#             datefmt="%Y-%m-%d %H:%M:%S")
+#     h.setFormatter(fmtr)
+#     logger.addHandler(h)
+#     return logger
 
 
 def load_defaults():
@@ -77,9 +77,8 @@ def parse_args():
                         help="one of: 'report' or ...")
     parser.add_argument("extras", nargs="*",
                         help="Additional arguments")
-    # Check command 
-    parser.add_argument("check", 
-                        help = "Validate files")
+    parser.add_argument("info", "-i",
+                        help = "Output info messages")
     args = parser.parse_args()
     return args
 
@@ -103,9 +102,8 @@ def do_command(logger, args, settings):
 
 def do_check(logger, args):
     logger.info("do_check...") 
-    token = args.extras[0]
-    xml_file = base_classes.joinpath(f"{token}.nxdl.xml")
-    validate(xml_file)
+    filename = args.extras[0]
+    validate(filename)
 
 def do_report(logger, args, settings):
     """ Execute the report """
