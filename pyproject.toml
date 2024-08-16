@@ -33,5 +33,6 @@ Issues = "https://github.com/nexpy/nxvalidate/issues"
 nxvalidate = "nxvalidate.scripts.nxvalidate:main"
 
 [tool.setuptools.package-data]
+"nxvalidate.definitions.applications" = ["*.nxdl.xml"]
 "nxvalidate.definitions.base_classes" = ["*.nxdl.xml"]
 "nxvalidate.examples" = ["*.nxs", "*.h5"]
