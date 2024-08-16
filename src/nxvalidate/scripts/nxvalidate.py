@@ -32,6 +32,16 @@ class UserError(Exception):
     """ Generic user error for the nxvalidate program. """
     pass
 
+# move setup_logger to validate.py and change name to get_logger 
+# if there's no logger set it up 
+# if there is just return the logger 
+# within the setup_logger function 
+# you only want to run it once exactly like the get_validator 
+# return logger 
+# how do we decide whether the logger has been created or not 
+# global variable 
+# at the top of validate.py logger = None 
+
 
 # def setup_logger(logger):
 #     """ Set up the logger for development use """
@@ -79,6 +89,8 @@ def parse_args():
                         help="Additional arguments")
     parser.add_argument("info", "-i",
                         help = "Output info messages")
+    parser.add_argument("-p", "--path", nargs = 1,
+                        help = "Path to NeXus file")
     args = parser.parse_args()
     return args
 
