@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0.0", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools >= 64", "setuptools_scm >= 8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +17,10 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.8"
-dependencies = ["nexusformat"]
+dependencies = [
+  "nexusformat",
+  "importlib_resources; python_version <= '3.9'"
+]
 
 [project.optional-dependencies]
 test = ["pytest"]
