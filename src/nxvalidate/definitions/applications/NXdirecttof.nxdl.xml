@@ -37,19 +37,15 @@
           <item value="NXdirecttof"/>
         </enumeration>
       </field>
-     <group type="NXinstrument">
-       <group type="NXfermi_chopper" name="fermi_chopper" minOccurs="0">
+     <group type="NXinstrument" minOccurs="1">
+       <group type="NXfermi_chopper" name="fermi_chopper" minOccurs="1">
         <field name="rotation_speed" type="NX_FLOAT" units="NX_FREQUENCY">
           <doc>chopper rotation speed</doc>
         </field>
-       <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
+        <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
             <doc>energy selected</doc>
-       </field> 
+        </field> 
        </group>
-       <group type="NXdisk_chopper" name="disk_chopper" minOccurs="0">
-        <field name="rotation_speed" type="NX_FLOAT" units="NX_FREQUENCY">
-          <doc>chopper rotation speed</doc>
-        </field>
        <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
             <doc>energy selected</doc>
        </field> 
