@@ -30,7 +30,7 @@ Repository = "https://github.com/nexpy/nxvalidate.git"
 Issues = "https://github.com/nexpy/nxvalidate/issues"
 
 [project.scripts]
-nxvalidate = "nxvalidate.scripts.nxvalidate:main"
+nxvalidate = "nxvalidate.scripts.nxvalidate_script:main"
 
 [tool.setuptools.package-data]
 "nxvalidate.definitions.applications" = ["*.nxdl.xml"]
