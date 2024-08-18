@@ -150,18 +150,18 @@ class FieldValidator(Validator):
         self.check_units(tag, field)
 
 
+field_validator = FieldValidator()
+
+
 def validate(filename, path=None):
     
     with nxopen(filename) as root:
         if path:
             root = root[path]
-        for item in root.walk(): # go through every item in group
-            if isinstance(item, NXgroup): # if the item is an NXgroup
-                validator = get_validator(item.nxclass) # get the validator for that particular class of that group this returns the NXsample version of that validator
-                validator.validate(item) # let's validate the item itself which is the group
-
-
-field_validator = FieldValidator()
+        for item in root.walk():
+            if isinstance(item, NXgroup):
+                validator = get_validator(item.nxclass)
+                validator.validate(item)
 
 
 def report(base_class):
