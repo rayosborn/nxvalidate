@@ -6,7 +6,7 @@ import numpy as np
 from nexusformat.nexus import *
 
 from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
-                    package_files)
+                    package_files, strip_namespace)
 
 # Global dictionary of validators 
 validators = {}
@@ -31,7 +31,6 @@ def get_validator(nxclass):
 
 class Validator():
     
-    # move the logger 
     def __init__(self):
         pass
         
@@ -45,12 +44,11 @@ class Validator():
         else:
             return valid_list        
         root = tree.getroot()
-        
-        namespace = root.tag.split('}')[0][1:]
+        strip_namespace(root)
     
         if tag.lower() == 'field':
             valid_list = {}
-            for field in root.findall('.//{%s}field' % namespace):
+            for field in root.findall('field'):
                 name = field.get('name')
                 if name:
                     valid_list[name] = {k: v for k, v in field.attrib.items()
@@ -58,15 +56,15 @@ class Validator():
                         
         elif tag.lower() ==  'group':
             valid_list = {}
-            for group in root.findall('.//{%s}group' % namespace):
+            for group in root.findall('group'):
                 group_type = group.get('type')
                 if group_type:
                     valid_list[group_type] = {k: v 
                         for k, v in group.attrib.items() if k != 'type'}                    
 
         elif tag.lower() == 'attribute':
-            valid_list = [] # List instead of dictionary
-            for attribute in root.findall('.//{%s}attribute' % namespace):
+            valid_list = []
+            for attribute in root.findall('attribute'):
                 name = attribute.get('name')
                 if name:
                     valid_list.append(name)
