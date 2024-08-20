@@ -1,4 +1,5 @@
 import logging
+import re
 import sys
 import xml.etree.ElementTree as ET
 
@@ -7,6 +8,9 @@ from nexusformat.nexus import *
 
 from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
                     package_files, strip_namespace)
+
+
+name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
 # Global dictionary of validators 
 validators = {}
@@ -71,6 +75,13 @@ class Validator():
         
         return valid_list 
 
+    def is_valid_name(self, name):
+        if re.match(name_pattern, name):
+            return True
+        else:
+            return False
+
+
 class GroupValidator(Validator):
 
     def __init__(self, nxclass):
@@ -104,8 +115,10 @@ class GroupValidator(Validator):
                 field_validator.validate(self.valid_fields[entry], item)                
             elif item.nxclass in self.valid_groups:
                 logger.info(f'{entry}:{item.nxclass} is a valid member of {group.nxpath}')
+            elif self.is_valid_name(entry):
+                log(f'"{entry}" not defined in {group.nxpath}', level='warning', indent=1)
             else:
-                logger.warning(f'{entry} not defined in {group.nxname}')
+                log(f'"{entry}" in {group.nxpath} is an invalid name', level='error', indent=1)
                 
 
 class FieldValidator(Validator):
