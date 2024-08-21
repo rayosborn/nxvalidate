@@ -3,7 +3,7 @@
 <!--
 # NeXus - Neutron and X-ray Common Data Format
 # 
-# Copyright (C) 2008-2024 NeXus International Advisory Committee (NIAC)
+# Copyright (C) 2008-2022 NeXus International Advisory Committee (NIAC)
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -38,20 +38,16 @@
         </enumeration>
       </field>
      <group type="NXinstrument" minOccurs="1">
-       <group type="NXfermi_chopper" name="fermi_chopper" minOccurs="1">
+       <group type="NXfermi_chopper" name="fermi_chopper" minOccurs="0">
         <field name="rotation_speed" type="NX_FLOAT" units="NX_FREQUENCY">
           <doc>chopper rotation speed</doc>
         </field>
-        <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
-            <doc>energy selected</doc>
-        </field> 
-       </group>
        <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
             <doc>energy selected</doc>
        </field> 
        </group>
        <doc>
-          We definitely want the rotation_speed and energy of the chopper. Thus either 
+          We definitly want the rotation_speed and energy of the chopper. Thus either 
           a fermi_chopper or a disk_chopper group is required. 
        </doc>
      </group>  
