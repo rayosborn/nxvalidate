@@ -16,8 +16,7 @@ name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 validators = {}
 
 def get_logger(): 
-    logger = logging.getLogger("validate")
-    logger.info("NXVALIDATE")
+    logger = logging.getLogger("NXValidate")
     logger.setLevel(logging.DEBUG)
     stream_handler = logging.StreamHandler(stream=sys.stdout)
     logger.addHandler(stream_handler)
@@ -46,7 +45,7 @@ class Validator():
         if file_path.exists():
             tree = ET.parse(file_path)
         else:
-            return valid_list        
+            return valid_list
         root = tree.getroot()
         strip_namespace(root)
     
@@ -73,7 +72,7 @@ class Validator():
                 if name:
                     valid_list.append(name)
         
-        return valid_list 
+        return valid_list
 
     def is_valid_name(self, name):
         if re.match(name_pattern, name):
@@ -104,17 +103,17 @@ class GroupValidator(Validator):
         
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
-                logger.info(f'{attribute} is a valid attribute of {group.nxpath}')
+                log(f'{attribute} is a valid attribute of {group.nxpath}')
             else:
-                logger.warning(f'{attribute} not defined')
+                log(f'{attribute} not defined', level='warning', indent=1)
                 
         for entry in group.entries: # entries is a dictionary of all the items 
             item = group.entries[entry]
             if entry in self.valid_fields:
-                logger.info(f'{entry} is a valid member of {group.nxpath}')
+                log(f'{entry} is a valid member of {group.nxpath}', indent=1)
                 field_validator.validate(self.valid_fields[entry], item)                
             elif item.nxclass in self.valid_groups:
-                logger.info(f'{entry}:{item.nxclass} is a valid member of {group.nxpath}')
+                log(f'{entry}:{item.nxclass} is a valid member of {group.nxpath},', indent=1)
             elif self.is_valid_name(entry):
                 log(f'"{entry}" not defined in {group.nxpath}', level='warning', indent=1)
             else:
@@ -133,28 +132,29 @@ class FieldValidator(Validator):
             return 
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                logger.info(f'"{field.nxname}" is a valid date')
+                log(f'"{field.nxname}" is a valid date')
             else:
-                logger.warning(f'"{field.nxname}" is not a valid date')
+                log(f'"{field.nxname}" is not a valid date', level='warning', indent=1)
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid integer')
+                log(f'"{field.nxname}" is a valid integer')
             else:
-                logger.warning(f'"{field.nxname}" is not a valid integer')
+                log(f'"{field.nxname}" is not a valid integer', level='warning', indent=1)
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid float')
+                log(f'"{field.nxname}" is a valid float')
             else:
-                logger.warning(f'"{field.nxname}" is not a valid float')
+                log(f'"{field.nxname}" is not a valid float', level='warning', indent=1)
 
         # Add other datatypes
 
     def check_units(self, tag, field):
         if 'units' in tag:
             if 'units' in field.attrs:
-                logger.info('units specified')
+                log('units specified')
             else:
-                logger.warning('units not specified')
+                pass
+                log('units not specified', level='warning', indent=1)
 
     def validate(self, tag, field):
         self.check_type(tag, field)
@@ -164,31 +164,70 @@ class FieldValidator(Validator):
 field_validator = FieldValidator()
 
 
-def validate(filename, path=None):
-    
+def validate_file(filename, path=None):
+ 
     with nxopen(filename) as root:
         if path:
             root = root[path]
         for item in root.walk():
             if isinstance(item, NXgroup):
+                log(f'Path: {item.nxpath}', level='error')
                 validator = get_validator(item.nxclass)
                 validator.validate(item)
 
+def validate_application(application, filename, path):
+    with nxopen(filename) as root:
+        if path:
+            root = root[path]
+    if 'definition' in root:
+        application = root['definition']
+    app_path = package_files('nxvalidate.definitions.applications'
+                             ).joinpath(f'{application}.nxdl.xml')
+    if app_path.exists():
+        tree = ET.parse(app_path)
+    else:
+        return
+    xml_root = tree.getroot()
+    strip_namespace(xml_root)
+    
+
+    # Walk through the application tree
+    # XML_tree['entry']
+    # with nxopen(filename) as root:
+    #     root = root[path]
+    #     for children in XML_tree['entry']:
+    #         if children['name'] in root[path]:
+    #             log.info()
+    #         else:
+    #             log.warning(f'"{children["name"]}" not found')
+    #         if child
+        
 
 def report(base_class):
     validator = get_validator(base_class)
-    logger.info(f"Base Class: {base_class}")
-    logger.info('    Defined Attributes')
+    log(f"Base Class: {base_class}")
+    log('Defined Attributes', indent=1)
     for attribute in validator.valid_attributes:
-        logger.info(f"        @{attribute}")
-    logger.info('    Defined Groups')
+        log(f"@{attribute}", indent=2)
+    log('    Defined Groups')
     for group in validator.valid_groups:
-        logger.info(f"        {group}")
-    logger.info('    Defined Fields')              
+        log(f"{group}", indent=2)
+    log('    Defined Fields')              
     for field in validator.valid_fields:
-        logger.info(f"        {field}")
+        log(f"{field}: {validator.valid_fields[field]}", indent=2)
 
+
+def log(message, level='info', indent=0):
+    if level == 'info':
+        logger.info(f'{4*indent*" "}{message}')
+    elif level == 'warning':
+        logger.warning(f'{4*indent*" "}{message}')
+    elif level == 'error':
+        logger.error(f'{4*indent*" "}{message}')
+    elif level == 'all':
+        logger.log(logging.NOTSET, f'{4*indent*" "}{message}')
+    
 
 if __name__ == "__main__":
     chopper = '/Users/kaitlyn/Desktop/argonne/nxvalidate/demos/chopper.nxs'
-    validate(chopper)
+    validate_file(chopper)
