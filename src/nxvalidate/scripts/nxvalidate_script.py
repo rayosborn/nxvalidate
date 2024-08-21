@@ -11,7 +11,7 @@ import argparse
 import logging
 import xml.etree.ElementTree as ET
 
-from nxvalidate.validate import logger, report, validate
+from nxvalidate.validate import logger, report, validate_application, validate_file
 
 
 def main():
@@ -28,10 +28,22 @@ def main():
                         help = "name of the base class to be listed")
     parser.add_argument("-i", "--info", action='store_true',
                         help = "Output info messages in addition to warnings and errors")
+    parser.add_argument("-d", "--debug", action='store_true',
+                        help = "Output info messages in addition to warnings and errors")
+    parser.add_argument("-w", "--warning", action='store_true',
+                        help = "Output info messages in addition to warnings and errors")
+    parser.add_argument("-e", "--error", action='store_true',
+                        help = "Output info messages in addition to warnings and errors")
     args = parser.parse_args()
 
     if args.info or args.baseclass:
         logger.setLevel(logging.INFO)
+    elif args.debug:
+        logger.setLevel(logging.DEBUG)
+    elif args.warning:
+        logger.setLevel(logging.WARNING)
+    elif args.error:
+        logger.setLevel(logging.ERROR)
     else:
         logger.setLevel(logging.WARNING)
 
@@ -39,9 +51,12 @@ def main():
         report(args.baseclass[0])
     elif args.filename:
         if args.path:
-            validate(args.filename[0], args.path[0])
+            if args.application:
+                validate_application(args.filename[0], args.application[0], args.path[0])
+            else:
+                validate_file(args.filename[0], args.path[0])
         else:
-            validate(args.filename[0])
+            validate_file(args.filename[0])
 
 
 if __name__ == "__main__":

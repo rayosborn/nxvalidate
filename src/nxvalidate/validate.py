@@ -100,22 +100,28 @@ class GroupValidator(Validator):
         return self.get_valid_entries(self.nxclass, 'attribute')
     
     def validate(self, group): 
-        
+
+        log(f'Group: {group.nxpath}', level='error')        
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
-                log(f'{attribute} is a valid attribute of {group.nxpath}')
+                log(f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
             else:
-                log(f'{attribute} not defined', level='warning', indent=1)
+                log(f'"@{attribute}" not defined as an attribute in the base class {group.nxclass}', level='info', indent=1)
                 
         for entry in group.entries: # entries is a dictionary of all the items 
             item = group.entries[entry]
             if entry in self.valid_fields:
-                log(f'{entry} is a valid member of {group.nxpath}', indent=1)
                 field_validator.validate(self.valid_fields[entry], item)                
             elif item.nxclass in self.valid_groups:
-                log(f'{entry}:{item.nxclass} is a valid member of {group.nxpath},', indent=1)
+                log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', indent=1)
             elif self.is_valid_name(entry):
-                log(f'"{entry}" not defined in {group.nxpath}', level='warning', indent=1)
+                if isinstance(item, NXgroup):
+                    log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', level='warning', indent=1)
+                elif isinstance(item, NXfield):
+                    if group.nxclass == 'NXdata':
+                        log(f'Field "{entry}" is an allowed field in the base class {group.nxclass}', level='info', indent=1)
+                    else:
+                        log(f'Field "{entry}" not defined in the base class {group.nxclass}', level='warning', indent=1)
             else:
                 log(f'"{entry}" in {group.nxpath} is an invalid name', level='error', indent=1)
                 
@@ -132,31 +138,33 @@ class FieldValidator(Validator):
             return 
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                log(f'"{field.nxname}" is a valid date')
+                log(f'"{field.nxname}" is a valid date', indent=2)
             else:
-                log(f'"{field.nxname}" is not a valid date', level='warning', indent=1)
+                log(f'"{field.nxname}" is not a valid date', level='warning', indent=2)
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                log(f'"{field.nxname}" is a valid integer')
+                log(f'"{field.nxname}" is a valid integer', indent=2)
             else:
-                log(f'"{field.nxname}" is not a valid integer', level='warning', indent=1)
+                log(f'"{field.nxname}" is not a valid integer', level='warning', indent=2)
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                log(f'"{field.nxname}" is a valid float')
+                log(f'"{field.nxname}" is a valid float', indent=2)
             else:
-                log(f'"{field.nxname}" is not a valid float', level='warning', indent=1)
+                log(f'"{field.nxname}" is not a valid float', level='warning', indent=2)
 
         # Add other datatypes
 
     def check_units(self, tag, field):
         if 'units' in tag:
             if 'units' in field.attrs:
-                log('units specified')
+                log(f'"{field.attrs["units"]}" are specified as the units of "{field.nxname}"', indent=2)
             else:
                 pass
-                log('units not specified', level='warning', indent=1)
+                log('Units not specified', level='warning', indent=2)
 
     def validate(self, tag, field):
+        log(f'Field: {field.nxpath}', level='error', indent=1)
+        log(f'"{field.nxname}" is a valid field in {field.nxgroup.nxpath}', indent=2)     
         self.check_type(tag, field)
         self.check_units(tag, field)
 
@@ -171,7 +179,6 @@ def validate_file(filename, path=None):
             root = root[path]
         for item in root.walk():
             if isinstance(item, NXgroup):
-                log(f'Path: {item.nxpath}', level='error')
                 validator = get_validator(item.nxclass)
                 validator.validate(item)
 
@@ -220,12 +227,12 @@ def report(base_class):
 def log(message, level='info', indent=0):
     if level == 'info':
         logger.info(f'{4*indent*" "}{message}')
+    elif level == 'debug':
+        logger.log(logging.DEBUG, f'{4*indent*" "}{message}')
     elif level == 'warning':
         logger.warning(f'{4*indent*" "}{message}')
     elif level == 'error':
         logger.error(f'{4*indent*" "}{message}')
-    elif level == 'all':
-        logger.log(logging.NOTSET, f'{4*indent*" "}{message}')
     
 
 if __name__ == "__main__":
