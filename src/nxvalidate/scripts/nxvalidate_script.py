@@ -22,7 +22,7 @@ def main():
                         help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,
                         help = "path to group to be validated in the NeXus file")
-    parser.add_argument("-a", "--application", nargs = '?',
+    parser.add_argument("-a", "--application", nargs = 1,
                         help = "name of the application used to validate the NeXus file")
     parser.add_argument("-b", "--baseclass", nargs = 1,
                         help = "name of the base class to be listed")
@@ -50,11 +50,13 @@ def main():
     if args.baseclass:
         report(args.baseclass[0])
     elif args.filename:
-        if args.path:
-            if args.application:
-                validate_application(args.filename[0], args.application[0], args.path[0])
+        if args.application:
+            if args.path:
+                validate_application(args.application[0], args.filename[0], args.path[0])
             else:
-                validate_file(args.filename[0], args.path[0])
+                validate_application(args.appication[0], args.filename[0])
+        elif args.path:
+            validate_file(args.filename[0], args.path[0])
         else:
             validate_file(args.filename[0])
 

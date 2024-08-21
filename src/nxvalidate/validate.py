@@ -197,18 +197,16 @@ def validate_application(application, filename, path):
     xml_root = tree.getroot()
     strip_namespace(xml_root)
     
+    def walk(element, level=0):
+        yield element, level
+        for child in element:
+            yield from walk(child, level + 1)
 
-    # Walk through the application tree
-    # XML_tree['entry']
-    # with nxopen(filename) as root:
-    #     root = root[path]
-    #     for children in XML_tree['entry']:
-    #         if children['name'] in root[path]:
-    #             log.info()
-    #         else:
-    #             log.warning(f'"{children["name"]}" not found')
-    #         if child
-        
+    for elem, level in walk(xml_root):
+        indent = "  " * level
+        print(f"{indent}{elem.tag}: {elem.text.strip() if elem.text else ''}")
+        for name, value in elem.attrib.items():
+            print(f"{indent}  @{name} = {value}")
 
 def report(base_class):
     validator = get_validator(base_class)
