@@ -23,7 +23,6 @@ def get_logger():
 
 
 logger = get_logger()
-logged_messages = []
 
 
 def get_validator(nxclass):
@@ -35,7 +34,7 @@ def get_validator(nxclass):
 class Validator():
     
     def __init__(self):
-        pass
+        self.logged_messages = []
         
     def get_valid_entries(self, base_class, tag):
         valid_list = {}
@@ -81,16 +80,14 @@ class Validator():
             return False
 
     def log(self, message, level='info', indent=0):
-        global logged_messages
-        logged_messages.append((message, level, indent))
+        self.logged_messages.append((message, level, indent))
 
     def output_log(self):
-        global logged_messages
         info = 0
         warning = 0
         error = 0
         debug = 0
-        for item in logged_messages:
+        for item in self.logged_messages:
             if item[1] == 'info':
                 info += 1
             elif item[1] == 'warning':
@@ -99,12 +96,14 @@ class Validator():
                 error += 1
             elif item[1] == 'debug':
                 debug += 1
-        if logger.level != logging.INFO and warning == 0 and error == 1:
-            logged_messages = []
+        if logger.level != logging.INFO and warning == 0 and error == 0:
+            self.logged_messages = []
             return
-        for message, level, indent in logged_messages:
+        for message, level, indent in self.logged_messages:
+            if level == 'all':
+                level = 'error'
             log(message, level=level, indent=indent)
-        logged_messages = []
+        self.logged_messages = []
 
 
 class GroupValidator(Validator):
@@ -127,7 +126,7 @@ class GroupValidator(Validator):
     
     def validate(self, group): 
 
-        self.log(f'{group.nxclass}:"{group.nxpath}"', level='error')        
+        self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
                 self.log(f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
@@ -137,7 +136,7 @@ class GroupValidator(Validator):
         for entry in group.entries: # entries is a dictionary of all the items 
             item = group.entries[entry]
             if entry in self.valid_fields:
-                field_validator.validate(self.valid_fields[entry], item)                
+                field_validator.validate(self.valid_fields[entry], item)
             elif item.nxclass in self.valid_groups:
                 self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', indent=1)
             elif self.is_valid_name(entry):
@@ -189,10 +188,11 @@ class FieldValidator(Validator):
                 self.log('Units not specified', level='warning', indent=2)
 
     def validate(self, tag, field):
-        self.log(f'Field: {field.nxpath}', level='error', indent=1)
+        self.log(f'Field: {field.nxpath}', level='all', indent=1)
         self.log(f'"{field.nxname}" is a valid field in the base class {field.nxgroup.nxclass}', indent=2)     
         self.check_type(tag, field)
         self.check_units(tag, field)
+        self.output_log()
 
 
 field_validator = FieldValidator()
