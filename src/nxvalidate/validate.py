@@ -4,7 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from nexusformat.nexus import *
+from nexusformat.nexus import NXfield, NXgroup, nxopen
 
 from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
                     package_files, strip_namespace)
