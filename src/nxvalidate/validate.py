@@ -9,7 +9,6 @@ from nexusformat.nexus import NXfield, NXgroup, nxopen
 from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
                     package_files, strip_namespace)
 
-
 name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
 # Global dictionary of validators 
@@ -24,6 +23,7 @@ def get_logger():
 
 
 logger = get_logger()
+logged_messages = []
 
 
 def get_validator(nxclass):
@@ -35,7 +35,7 @@ def get_validator(nxclass):
 class Validator():
     
     def __init__(self):
-        self.logged_messages = []
+        pass
         
     def get_valid_entries(self, base_class, tag):
         valid_list = {}
@@ -81,14 +81,16 @@ class Validator():
             return False
 
     def log(self, message, level='info', indent=0):
-        self.logged_messages.append((message, level, indent))
+        global logged_messages
+        logged_messages.append((message, level, indent))
 
     def output_log(self):
+        global logged_messages
         info = 0
         warning = 0
         error = 0
         debug = 0
-        for item in self.logged_messages:
+        for item in logged_messages:
             if item[1] == 'info':
                 info += 1
             elif item[1] == 'warning':
@@ -98,11 +100,11 @@ class Validator():
             elif item[1] == 'debug':
                 debug += 1
         if logger.level != logging.INFO and warning == 0 and error == 1:
-            self.logged_messages = []
+            logged_messages = []
             return
-        for message, level, indent in self.logged_messages:
+        for message, level, indent in logged_messages:
             log(message, level=level, indent=indent)
-        self.logged_messages = []
+        logged_messages = []
 
 
 class GroupValidator(Validator):
@@ -125,8 +127,7 @@ class GroupValidator(Validator):
     
     def validate(self, group): 
 
-        self.logged_messages = []
-        self.log(f'Group: {group.nxpath}', level='error')        
+        self.log(f'{group.nxclass}:"{group.nxpath}"', level='error')        
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
                 self.log(f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
@@ -148,7 +149,7 @@ class GroupValidator(Validator):
                     else:
                         self.log(f'Field "{entry}" not defined in the base class {group.nxclass}', level='warning', indent=1)
             else:
-                self.log(f'"{entry}" in {group.nxpath} is an invalid name', level='error', indent=1)
+                self.log(f'"{entry}" is an invalid name', level='error', indent=1)
         self.output_log()
                 
 
@@ -183,18 +184,15 @@ class FieldValidator(Validator):
     def check_units(self, tag, field):
         if 'units' in tag:
             if 'units' in field.attrs:
-                log(f'"{field.attrs["units"]}" are specified as the units of "{field.nxname}"', indent=2)
+                self.log(f'"{field.attrs["units"]}" are specified as the units of "{field.nxname}"', indent=2)
             else:
-                pass
                 self.log('Units not specified', level='warning', indent=2)
 
     def validate(self, tag, field):
-        self.logged_messages = []
         self.log(f'Field: {field.nxpath}', level='error', indent=1)
-        self.log(f'"{field.nxname}" is a valid field in {field.nxgroup.nxpath}', indent=2)     
+        self.log(f'"{field.nxname}" is a valid field in the base class {field.nxgroup.nxclass}', indent=2)     
         self.check_type(tag, field)
         self.check_units(tag, field)
-        self.output_log()
 
 
 field_validator = FieldValidator()
