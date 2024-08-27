@@ -33,43 +33,58 @@ def get_validator(nxclass):
 
 class Validator():
     
-    def __init__(self):
+    def __init__(self, nxclass=None):
+        self.nxclass = nxclass
         self.logged_messages = []
-        
+        self.valid_class = True
+        if self.nxclass != 'NXfield':
+            self.root =self.get_root()
+        else:
+            self.root = None
+        self.parent = None
+
+    def get_root(self):
+        if self.nxclass:
+            file_path = package_files('nxvalidate.definitions.base_classes'
+                                      ).joinpath(f'{self.nxclass}.nxdl.xml')
+            if file_path.exists():
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                strip_namespace(root)
+            else:
+                root = None
+                self.valid_class = False
+        else:
+            root = None
+        return root
+
     def get_valid_entries(self, base_class, tag):
+
         valid_list = {}
 
-        file_path = package_files('nxvalidate.definitions.base_classes'
-                                  ).joinpath(f'{base_class}.nxdl.xml')
-        if file_path.exists():
-            tree = ET.parse(file_path)
-        else:
+        if self.root is None:
             return valid_list
-        root = tree.getroot()
-        strip_namespace(root)
     
-        if tag.lower() == 'field':
-            valid_list = {}
-            for field in root.findall('field'):
+        if tag == 'field':
+            for field in self.root.findall('field'):
                 name = field.get('name')
                 if name:
                     valid_list[name] = {k: v for k, v in field.attrib.items()
                                         if k != 'name'}
                         
-        elif tag.lower() ==  'group':
-            valid_list = {}
-            for group in root.findall('group'):
+        elif tag ==  'group':
+            for group in self.root.findall('group'):
                 group_type = group.get('type')
                 if group_type:
                     valid_list[group_type] = {k: v 
                         for k, v in group.attrib.items() if k != 'type'}                    
 
-        elif tag.lower() == 'attribute':
-            valid_list = []
-            for attribute in root.findall('attribute'):
+        elif tag == 'attribute':
+            for attribute in self.root.findall('attribute'):
                 name = attribute.get('name')
                 if name:
-                    valid_list.append(name)
+                    valid_list[name] = {k: v for k, v in attribute.attrib.items()
+                                        if k != 'name'}
         
         return valid_list
 
