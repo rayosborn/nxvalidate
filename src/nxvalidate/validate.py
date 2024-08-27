@@ -7,7 +7,10 @@ import numpy as np
 from nexusformat.nexus import NXfield, NXgroup, nxopen
 
 from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
-                    package_files, strip_namespace)
+                    package_files, strip_namespace, is_valid_bool, is_valid_char, 
+                    is_valid_char_or_number, is_valid_complex, is_valid_number, 
+                    is_valid_posint, is_valid_uint)
+
 
 name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
@@ -178,9 +181,42 @@ class FieldValidator(Validator):
             if is_valid_float(field.dtype):
                 self.log(f'"{field.nxname}" is a valid float', indent=2)
             else:
-                self.log(f'"{field.nxname}" is not a valid float', level='warning', indent=2)
-
-        # Add other datatypes
+                logger.warning(f'"{field.nxname}" is not a valid float')
+        elif dtype == 'NX_BOOLEAN':
+            if is_valid_bool(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid boolean')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid boolean')         
+        elif dtype == 'NX_CHAR':
+            if is_valid_char(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid char')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid char')                  
+        elif dtype == 'NX_CHAR_OR_NUMBER':
+            if is_valid_char_or_number(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid char or number')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid char or number')                
+        elif dtype == 'NX_COMPLEX':
+            if is_valid_complex(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid complex number')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid complex number') 
+        elif dtype == 'NX_NUMBER':
+            if is_valid_number(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid number')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid number')       
+        elif dtype == 'NX_POSINT':
+            if is_valid_posint(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid positive integer')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid positive integer')    
+        elif dtype == 'NX_UINT':
+            if is_valid_uint(field.dtype):
+                logger.info(f'"{field.nxname}" is a valid unsigned integer')
+            else:
+                logger.warning(f'"{field.nxname}" is not a valid unsigned integer')        
 
     def check_units(self, tag, field):
         if 'units' in tag:
