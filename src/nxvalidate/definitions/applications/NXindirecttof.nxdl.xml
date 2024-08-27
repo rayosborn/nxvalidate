@@ -21,43 +21,48 @@
 #
 # For further information, see http://www.nexusformat.org
 -->
-<definition name="NXdirecttof" extends="NXtofraw" type="group"
+<definition name="NXindirecttof" extends="NXtofraw" type="group"
   category="application"
   xmlns="http://definition.nexusformat.org/nxdl/3.1"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://definition.nexusformat.org/nxdl/3.1 ../nxdl.xsd"
     >
-    <doc>This is a application definition for raw data from a direct geometry TOF spectrometer</doc>
+    <symbols>
+        <doc>
+            The symbol(s) listed here will be used below to coordinate datasets with the same shape.
+        </doc>
+        <symbol name="nDet">
+            <doc>Number of detectors</doc>
+        </symbol>
+    </symbols>
+    <doc>This is a application definition for raw data from an indirect geometry TOF spectrometer</doc>
     <group type="NXentry" name="entry">
       <field name="title" />
       <field name="start_time" type="NX_DATE_TIME" />
       <field name="definition">
         <doc> Official NeXus NXDL schema to which this file conforms </doc>
         <enumeration>
-          <item value="NXdirecttof"/>
+          <item value="NXindirecttof"/>
         </enumeration>
       </field>
      <group type="NXinstrument">
-       <group type="NXfermi_chopper" name="fermi_chopper" minOccurs="0">
-        <field name="rotation_speed" type="NX_FLOAT" units="NX_FREQUENCY">
-          <doc>chopper rotation speed</doc>
-        </field>
-       <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
-            <doc>energy selected</doc>
-       </field> 
-       </group>
-       <group type="NXdisk_chopper" name="disk_chopper" minOccurs="0">
-        <field name="rotation_speed" type="NX_FLOAT" units="NX_FREQUENCY">
-          <doc>chopper rotation speed</doc>
-        </field>
-       <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
-            <doc>energy selected</doc>
-       </field> 
-       </group>
-       <doc>
-          We definitly want the rotation_speed and energy of the chopper. Thus either 
-          a fermi_chopper or a disk_chopper group is required. 
-       </doc>
+       <group type="NXmonochromator" name="analyser">
+        <field name="energy" type="NX_FLOAT" units="NX_ENERGY">
+          <doc>analyzed energy </doc>
+          <dimensions rank="1">
+            <dim index="1" value="nDet" /></dimensions>
+        </field> 
+        <field name="polar_angle" type="NX_FLOAT" units="NX_ANGLE">
+          <doc>polar angle towards sample</doc>
+          <dimensions rank="1">
+            <dim index="1" value="nDet" /></dimensions>
+        </field>  
+        <field name="distance" type="NX_FLOAT" units="NX_LENGTH">
+          <doc>distance from sample</doc>
+          <dimensions rank="1">
+            <dim index="1" value="nDet" /></dimensions>
+        </field>  
+        </group>
+     </group>
      </group>  
-    </group>
 </definition>
