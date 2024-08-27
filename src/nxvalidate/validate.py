@@ -119,11 +119,11 @@ class Validator():
 class GroupValidator(Validator):
 
     def __init__(self, nxclass):
-        super().__init__() 
-        self.nxclass = nxclass 
-        self.valid_fields = self.get_valid_fields()
-        self.valid_groups = self.get_valid_groups()
-        self.valid_attributes = self.get_valid_attributes()
+        super().__init__(nxclass)
+        if self.valid_class:
+            self.valid_fields = self.get_valid_fields()
+            self.valid_groups = self.get_valid_groups()
+            self.valid_attributes = self.get_valid_attributes()
 
     def get_valid_fields(self):
         return self.get_valid_entries(self.nxclass, 'field')
@@ -137,6 +137,11 @@ class GroupValidator(Validator):
     def validate(self, group): 
 
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
+        if not self.valid_class:
+            self.log(f'{group.nxclass} is not a valid base class', level='error', indent=1)
+            self.output_log()
+            return
+
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
                 self.log(f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
@@ -153,7 +158,7 @@ class GroupValidator(Validator):
                 if isinstance(item, NXgroup):
                     self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', level='warning', indent=1)
                 elif isinstance(item, NXfield):
-                    if group.nxclass == 'NXdata':
+                    if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
                         self.log(f'Field "{entry}" is an allowed field in the base class {group.nxclass}', level='info', indent=1)
                     else:
                         self.log(f'Field "{entry}" not defined in the base class {group.nxclass}', level='warning', indent=1)
@@ -165,8 +170,7 @@ class GroupValidator(Validator):
 class FieldValidator(Validator):
 
     def __init__(self):
-        super().__init__()
-        self.parent = None
+        super().__init__(nxclass='NXfield')
 
     def check_type(self, tag, field):
         if 'type' in tag:
@@ -224,12 +228,17 @@ class FieldValidator(Validator):
             else:
                 logger.warning(f'"{field.nxname}" is not a valid unsigned integer')        
 
-    def check_units(self, tag, field):
-        if 'units' in tag:
-            if 'units' in field.attrs:
-                self.log(f'"{field.attrs["units"]}" are specified as the units of "{field.nxname}"', indent=2)
-            else:
-                self.log('Units not specified', level='warning', indent=2)
+    def check_attributes(self, tag, field):
+        if 'signal' in field.attrs:
+            self.log(f'Using "signal" as a field attribute is deprecated in favor of using the group attribute "signals"', level='warning', indent=2)
+        elif 'axis' in field.attrs:
+            self.log(f'Using "axis" as a field attribute is deprecated in favor of using the group attribute "axes"', level='warning', indent=2)
+        if 'units' in field.attrs:
+            self.log(f'"{field.attrs["units"]}" are specified as units of "{field.nxname}"', indent=2)
+        elif 'units' in tag:
+            self.log(f'Units of {tag["units"]} not specified', level='warning', indent=2)
+        for attr in [a for a in field.attrs if a not in ['axis', 'signal', 'units']]:
+            self.log(f'"{attr}" is defined as an attribute', indent=2)
 
     def output_log(self):
         info = 0
@@ -260,7 +269,7 @@ class FieldValidator(Validator):
         self.log(f'Field: {field.nxpath}', level='all', indent=1)
         self.log(f'"{field.nxname}" is a valid field in the base class {field.nxgroup.nxclass}', indent=2)     
         self.check_type(tag, field)
-        self.check_units(tag, field)
+        self.check_attributes(tag, field)
         self.output_log()
 
 
@@ -277,6 +286,7 @@ def validate_file(filename, path=None):
                 validator = get_validator(item.nxclass)
                 validator.validate(item)
 
+
 def validate_application(application, filename, path='/'):
     with nxopen(filename) as root:
         nxpath = path
@@ -291,6 +301,7 @@ def validate_application(application, filename, path='/'):
     xml_root = tree.getroot()
     strip_namespace(xml_root)
     
+    
     def walk(element, level=0):
         yield element, level
         for child in element:
@@ -303,6 +314,7 @@ def validate_application(application, filename, path='/'):
             nxpath = nxpath + '/' + elem.attrib['name']
             group = root[nxpath]
             print(f"{indent}  @{name} = {value}")
+
 
 def report(base_class):
     validator = get_validator(base_class)
@@ -327,8 +339,3 @@ def log(message, level='info', indent=0):
         logger.warning(f'{4*indent*" "}{message}')
     elif level == 'error':
         logger.error(f'{4*indent*" "}{message}')
-    
-
-if __name__ == "__main__":
-    chopper = '/Users/kaitlyn/Desktop/argonne/nxvalidate/demos/chopper.nxs'
-    validate_file(chopper)
