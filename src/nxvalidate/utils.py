@@ -1,3 +1,4 @@
+import re
 import sys
 
 if sys.version_info < (3, 10):
@@ -7,6 +8,16 @@ else:
 
 import numpy as np
 from dateutil.parser import parse
+from nexusformat.nexus.tree import string_dtype
+
+name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
+
+
+def is_valid_name(name):
+    if re.match(name_pattern, name):
+        return True
+    else:
+        return False
 
 
 def is_valid_iso8601(date_string):

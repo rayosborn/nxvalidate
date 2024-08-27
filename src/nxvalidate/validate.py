@@ -1,18 +1,15 @@
 import logging
-import re
 import sys
 import xml.etree.ElementTree as ET
 
 import numpy as np
 from nexusformat.nexus import NXfield, NXgroup, nxopen
 
-from .utils import (is_valid_float, is_valid_int, is_valid_iso8601,
-                    package_files, strip_namespace, is_valid_bool, is_valid_char, 
-                    is_valid_char_or_number, is_valid_complex, is_valid_number, 
-                    is_valid_posint, is_valid_uint)
-
-
-name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
+from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
+                    is_valid_complex, is_valid_float, is_valid_int,
+                    is_valid_iso8601, is_valid_name, is_valid_number,
+                    is_valid_posint, is_valid_uint, package_files,
+                    strip_namespace)
 
 # Global dictionary of validators 
 validators = {}
@@ -76,12 +73,6 @@ class Validator():
         
         return valid_list
 
-    def is_valid_name(self, name):
-        if re.match(name_pattern, name):
-            return True
-        else:
-            return False
-
     def log(self, message, level='info', indent=0):
         self.logged_messages.append((message, level, indent))
 
@@ -143,7 +134,7 @@ class GroupValidator(Validator):
                 field_validator.validate(self.valid_fields[entry], item, parent=self)
             elif item.nxclass in self.valid_groups:
                 self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', indent=1)
-            elif self.is_valid_name(entry):
+            elif is_valid_name(entry):
                 if isinstance(item, NXgroup):
                     self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', level='warning', indent=1)
                 elif isinstance(item, NXfield):
