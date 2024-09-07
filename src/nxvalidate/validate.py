@@ -38,7 +38,7 @@ class Validator():
         self.logged_messages = []
         self.valid_class = True
         if self.nxclass != 'NXfield':
-            self.root =self.get_root()
+            self.root = self.get_root()
         else:
             self.root = None
         self.parent = None
@@ -57,36 +57,6 @@ class Validator():
         else:
             root = None
         return root
-
-    def get_valid_entries(self, base_class, tag):
-
-        valid_list = {}
-
-        if self.root is None:
-            return valid_list
-    
-        if tag == 'field':
-            for field in self.root.findall('field'):
-                name = field.get('name')
-                if name:
-                    valid_list[name] = {k: v for k, v in field.attrib.items()
-                                        if k != 'name'}
-                        
-        elif tag ==  'group':
-            for group in self.root.findall('group'):
-                group_type = group.get('type')
-                if group_type:
-                    valid_list[group_type] = {k: v 
-                        for k, v in group.attrib.items() if k != 'type'}                    
-
-        elif tag == 'attribute':
-            for attribute in self.root.findall('attribute'):
-                name = attribute.get('name')
-                if name:
-                    valid_list[name] = {k: v for k, v in attribute.attrib.items()
-                                        if k != 'name'}
-        
-        return valid_list
 
     def log(self, message, level='info', indent=0):
         self.logged_messages.append((message, level, indent))
@@ -126,13 +96,34 @@ class GroupValidator(Validator):
             self.valid_attributes = self.get_valid_attributes()
 
     def get_valid_fields(self):
-        return self.get_valid_entries(self.nxclass, 'field')
+        valid_fields = {}
+        if self.root is not None:
+            for field in self.root.findall('field'):
+                name = field.get('name')
+                if name:
+                    valid_fields[name] = {k: v for k, v in field.attrib.items()
+                                          if k != 'name'}
+        return valid_fields
     
     def get_valid_groups(self):
-        return self.get_valid_entries(self.nxclass, 'group')
+        valid_groups = {}
+        if self.root is not None:
+            for group in self.root.findall('group'):
+                group_type = group.get('type')
+                if group_type:
+                    valid_groups[group_type] = {k: v 
+                        for k, v in group.attrib.items() if k != 'type'}
+        return valid_groups
     
     def get_valid_attributes(self):
-        return self.get_valid_entries(self.nxclass, 'attribute')
+        valid_attrs = {}
+        if self.root is not None:
+            for attr in self.root.findall('attribute'):
+                name = attr.get('name')
+                if name:
+                    valid_attrs[name] = {k: v for k, v in attr.attrib.items()
+                                        if k != 'name'}
+        return valid_attrs
     
     def validate(self, group): 
 
