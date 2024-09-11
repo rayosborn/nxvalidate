@@ -170,54 +170,67 @@ class FieldValidator(Validator):
             return 
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                self.log(f'"{field.nxname}" is a valid date', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_DATE_TIME', indent=2)
             else:
-                self.log(f'"{field.nxname}" is not a valid date', level='warning', indent=2)
+                self.log(f'"{field.nxname}" is not a valid NX_DATE_TIME', level='warning', indent=2)
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                self.log(f'"{field.nxname}" is a valid integer', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_INT', indent=2)
             else:
-                self.log(f'"{field.nxname}" is not a valid integer', level='warning', indent=2)
+                self.log(f'"{field.nxname}" is not a valid NX_INT',
+                         level='warning', indent=2)
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                self.log(f'"{field.nxname}" is a valid float', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_FLOAT', indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid float')
+                self.log(f'"{field.nxname}" is not a valid fNX_FLOAT',
+                         level='warning', indent=2)
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid boolean')
+                self.log(f'"{field.nxname}" is a valid NX_BOOLEAN', indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid boolean')         
+                self.log(f'"{field.nxname}" is not a valid NX_BOOLEAN',
+                         level='warning', indent=2)         
         elif dtype == 'NX_CHAR':
             if is_valid_char(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid char')
+                self.log(f'"{field.nxname}" is a valid NX_CHAR', indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid char')                  
+                self.log(f'"{field.nxname}" is not a valid NX_CHAR',
+                         level='warning', indent=2)                  
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid char or number')
+                self.log(f'"{field.nxname}" is a valid NX_CHAR_OR_NUMBER',
+                         indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid char or number')                
+                self.log(f'"{field.nxname}" is not a valid NX_CHAR_OR_NUMBER',
+                         level='warning', indent=2)                
         elif dtype == 'NX_COMPLEX':
             if is_valid_complex(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid complex number')
+                self.log(f'"{field.nxname}" is a valid NX_COMPLEX value',
+                         indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid complex number') 
+                self.log(f'"{field.nxname}" is not a valid NX_COMPLEX value',
+                         level='warning', indent=2) 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid number')
+                self.log(f'"{field.nxname}" is a valid NX_NUMBER', indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid number')       
+                self.log(f'"{field.nxname}" is not a valid NX_NUMBER',
+                         level='warning', indent=2)       
         elif dtype == 'NX_POSINT':
             if is_valid_posint(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid positive integer')
+                self.log(f'"{field.nxname}" is a valid NX_POSINT',
+                         indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid positive integer')    
+                self.log(f'"{field.nxname}" is not a valid NX_POSINT',
+                         level='warning', indent=2)    
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
-                logger.info(f'"{field.nxname}" is a valid unsigned integer')
+                self.log(f'"{field.nxname}" is a valid NX_UINT',
+                         indent=2)
             else:
-                logger.warning(f'"{field.nxname}" is not a valid unsigned integer')        
+                self.log(f'"{field.nxname}" is not a valid NX_UINT',
+                         level='warning', indent=2)        
 
     def check_attributes(self, tag, field):
         if 'signal' in field.attrs:
