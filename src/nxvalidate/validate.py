@@ -75,8 +75,8 @@ class Validator():
                 error += 1
             elif item[1] == 'debug':
                 debug += 1
-        if ((logger.level == logging.WARNING and warning == 0 and error == 0) or
-            (logger.level == logging.ERROR and error == 0)):
+        if ((logger.level == logging.WARNING and warning == 0 and error == 0)
+                or (logger.level == logging.ERROR and error == 0)):
             self.logged_messages = []
             return
         for message, level, indent in self.logged_messages:
@@ -129,30 +129,46 @@ class GroupValidator(Validator):
 
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         if not self.valid_class:
-            self.log(f'{group.nxclass} is not a valid base class', level='error', indent=1)
+            self.log(f'{group.nxclass} is not a valid base class',
+                     level='error', indent=1)
             self.output_log()
             return
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
-                self.log(f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
+                self.log(
+                    f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
             else:
-                self.log(f'"@{attribute}" not defined as an attribute in the base class {group.nxclass}', level='info', indent=1)
-                
+                self.log(f'"@{attribute}" not defined as an attribute in the base class {group.nxclass}', 
+                         level='info', indent=1)
+        if group.nxclass == 'NXdata':
+            if 'signal' in group.attrs:
+                signal = group.attrs['signal']
+                if signal not in group.entries:
+                    self.log(f'@signal={signal}" not present in group "{group.nxpath}"',
+                             level='error', indent=1)
+            else:
+                self.log(f'"@signal" not defined in NXdata group "{group.nxpath}"',
+                         level='error', indent=1)
+
         for entry in group.entries: 
             item = group.entries[entry]
             if entry in self.valid_fields:
                 field_validator.validate(self.valid_fields[entry], item, parent=self)
             elif item.nxclass in self.valid_groups:
-                self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', indent=1)
+                self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', 
+                         indent=1)
             elif is_valid_name(entry):
                 if isinstance(item, NXgroup):
-                    self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', level='warning', indent=1)
+                    self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', 
+                             level='warning', indent=1)
                 elif isinstance(item, NXfield):
                     if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
-                        self.log(f'Field "{entry}" is an allowed field in the base class {group.nxclass}', level='info', indent=1)
+                        self.log(f'Field "{entry}" is an allowed field in the base class {group.nxclass}', 
+                                 level='info', indent=1)
                     else:
-                        self.log(f'Field "{entry}" not defined in the base class {group.nxclass}', level='warning', indent=1)
+                        self.log(f'Field "{entry}" not defined in the base class {group.nxclass}', 
+                                 level='warning', indent=1)
             else:
                 self.log(f'"{entry}" is an invalid name', level='error', indent=1)
         self.output_log()
@@ -234,7 +250,7 @@ class FieldValidator(Validator):
 
     def check_attributes(self, tag, field):
         if 'signal' in field.attrs:
-            self.log(f'Using "signal" as a field attribute is deprecated in favor of using the group attribute "signals"', level='warning', indent=2)
+            self.log(f'Using "signal" as a field attribute is deprecated in favor of using the group attribute "signal"', level='warning', indent=2)
         elif 'axis' in field.attrs:
             self.log(f'Using "axis" as a field attribute is deprecated in favor of using the group attribute "axes"', level='warning', indent=2)
         if 'units' in field.attrs:
