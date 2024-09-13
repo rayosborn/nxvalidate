@@ -58,7 +58,15 @@ class Validator():
             root = None
         return root
 
-    def log(self, message, level='info', indent=0):
+    def get_attributes(self, item):
+        try:
+            return {k: v for k, v in item.attrib.items()}
+        except Exception:
+            return {}
+
+    def log(self, message, level='info', indent=None):
+        if indent is None:
+            indent = self.indent
         self.logged_messages.append((message, level, indent))
 
     def output_log(self):
@@ -101,8 +109,7 @@ class GroupValidator(Validator):
             for field in self.root.findall('field'):
                 name = field.get('name')
                 if name:
-                    valid_fields[name] = {k: v for k, v in field.attrib.items()
-                                          if k != 'name'}
+                    valid_fields[name] = self.get_attributes(field)
         return valid_fields
     
     def get_valid_groups(self):
@@ -111,8 +118,7 @@ class GroupValidator(Validator):
             for group in self.root.findall('group'):
                 group_type = group.get('type')
                 if group_type:
-                    valid_groups[group_type] = {k: v 
-                        for k, v in group.attrib.items() if k != 'type'}
+                    valid_groups[group_type] = self.get_attributes(group)
         return valid_groups
     
     def get_valid_attributes(self):
@@ -121,8 +127,7 @@ class GroupValidator(Validator):
             for attr in self.root.findall('attribute'):
                 name = attr.get('name')
                 if name:
-                    valid_attrs[name] = {k: v for k, v in attr.attrib.items()
-                                        if k != 'name'}
+                    valid_attrs[name] = self.get_attributes(attr)
         return valid_attrs
     
     def validate(self, group): 
