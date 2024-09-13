@@ -339,15 +339,17 @@ def validate_application(application, filename, path='/'):
 def report(base_class):
     validator = get_validator(base_class)
     log(f"Base Class: {base_class}")
-    log('Defined Attributes', indent=1)
-    for attribute in validator.valid_attributes:
-        log(f"@{attribute}", indent=2)
-    log('    Defined Groups')
-    for group in validator.valid_groups:
-        log(f"{group}", indent=2)
-    log('    Defined Fields')              
-    for field in validator.valid_fields:
-        log(f"{field}: {validator.valid_fields[field]}", indent=2)
+    if validator.valid_attributes:
+        for attribute in validator.valid_attributes:
+            log(f"@{attribute}", indent=1)
+    if validator.valid_groups:
+        log('Allowed Groups', indent=1)
+        for group in validator.valid_groups:
+            log(f"{group}", indent=2)
+    if validator.valid_fields:
+        log('Defined Fields', indent=1)              
+        for field in validator.valid_fields:
+            log(f"{field}: {validator.valid_fields[field]}", indent=2)
 
 
 def log(message, level='info', indent=0):
