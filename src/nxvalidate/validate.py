@@ -1,9 +1,10 @@
 import logging
 import sys
 import xml.etree.ElementTree as ET
+from pathlib import PosixPath as Path
 
 import numpy as np
-from nexusformat.nexus import NXfield, NXgroup, nxopen
+from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 
 from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
                     is_valid_complex, is_valid_float, is_valid_int,
@@ -130,52 +131,48 @@ class GroupValidator(Validator):
                     valid_attrs[name] = self.get_attributes(attr)
         return valid_attrs
     
-    def validate(self, group): 
-
+    def validate(self, group, indent=0): 
+        self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
+        self.indent += 1
         if not self.valid_class:
             self.log(f'{group.nxclass} is not a valid base class',
-                     level='error', indent=1)
+                     level='error')
             self.output_log()
             return
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
                 self.log(
-                    f'"@{attribute}" is a valid attribute of the base class {group.nxclass}', indent=1)
+                    f'"@{attribute}" is a valid attribute of the base class {group.nxclass}')
             else:
                 self.log(f'"@{attribute}" not defined as an attribute in the base class {group.nxclass}', 
-                         level='info', indent=1)
+                         level='info')
         if group.nxclass == 'NXdata':
             if 'signal' in group.attrs:
                 signal = group.attrs['signal']
                 if signal not in group.entries:
                     self.log(f'@signal={signal}" not present in group "{group.nxpath}"',
-                             level='error', indent=1)
+                             level='error')
             else:
                 self.log(f'"@signal" not defined in NXdata group "{group.nxpath}"',
-                         level='error', indent=1)
+                         level='error')
 
         for entry in group.entries: 
             item = group.entries[entry]
-            if entry in self.valid_fields:
-                field_validator.validate(self.valid_fields[entry], item, parent=self)
+            if item.nxclass == 'NXfield':
+                if entry in self.valid_fields:
+                    tag = self.valid_fields[entry]
+                else:
+                    tag = {}
+                field_validator.validate(tag, item, parent=self, indent=indent)
             elif item.nxclass in self.valid_groups:
-                self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},', 
-                         indent=1)
+                self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},')
             elif is_valid_name(entry):
-                if isinstance(item, NXgroup):
-                    self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', 
-                             level='warning', indent=1)
-                elif isinstance(item, NXfield):
-                    if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
-                        self.log(f'Field "{entry}" is an allowed field in the base class {group.nxclass}', 
-                                 level='info', indent=1)
-                    else:
-                        self.log(f'Field "{entry}" not defined in the base class {group.nxclass}', 
-                                 level='warning', indent=1)
+                self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', 
+                         level='warning')
             else:
-                self.log(f'"{entry}" is an invalid name', level='error', indent=1)
+                self.log(f'"{entry}" is an invalid name', level='error')
         self.output_log()
                 
 
@@ -191,79 +188,72 @@ class FieldValidator(Validator):
             return 
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                self.log(f'"{field.nxname}" is a valid NX_DATE_TIME', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_DATE_TIME')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_DATE_TIME', level='warning', indent=2)
+                self.log(f'"{field.nxname}" is not a valid NX_DATE_TIME', level='warning')
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_INT', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_INT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_INT',
-                         level='warning', indent=2)
+                self.log(f'"{field.nxname}" is not a valid NX_INT', level='warning')
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_FLOAT', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_FLOAT')
             else:
-                self.log(f'"{field.nxname}" is not a valid fNX_FLOAT',
-                         level='warning', indent=2)
+                self.log(f'"{field.nxname}" is not a valid fNX_FLOAT', level='warning')
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_BOOLEAN', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_BOOLEAN')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_BOOLEAN',
-                         level='warning', indent=2)         
+                self.log(f'"{field.nxname}" is not a valid NX_BOOLEAN', level='warning')         
         elif dtype == 'NX_CHAR':
             if is_valid_char(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_CHAR', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_CHAR')
             else:
                 self.log(f'"{field.nxname}" is not a valid NX_CHAR',
-                         level='warning', indent=2)                  
+                         level='warning')                  
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_CHAR_OR_NUMBER',
-                         indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_CHAR_OR_NUMBER')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_CHAR_OR_NUMBER',
-                         level='warning', indent=2)                
+                self.log(f'"{field.nxname}" is not a valid NX_CHAR_OR_NUMBER', level='warning')                
         elif dtype == 'NX_COMPLEX':
             if is_valid_complex(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_COMPLEX value',
-                         indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_COMPLEX value')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_COMPLEX value',
-                         level='warning', indent=2) 
+                self.log(f'"{field.nxname}" is not a valid NX_COMPLEX value', level='warning') 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_NUMBER', indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_NUMBER')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_NUMBER',
-                         level='warning', indent=2)       
+                self.log(f'"{field.nxname}" is not a valid NX_NUMBER', level='warning')       
         elif dtype == 'NX_POSINT':
             if is_valid_posint(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_POSINT',
-                         indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_POSINT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_POSINT',
-                         level='warning', indent=2)    
+                self.log(f'"{field.nxname}" is not a valid NX_POSINT', level='warning')    
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_UINT',
-                         indent=2)
+                self.log(f'"{field.nxname}" is a valid NX_UINT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_UINT',
-                         level='warning', indent=2)        
+                self.log(f'"{field.nxname}" is not a valid NX_UINT', level='warning')        
 
     def check_attributes(self, tag, field):
         if 'signal' in field.attrs:
-            self.log(f'Using "signal" as a field attribute is deprecated in favor of using the group attribute "signal"', level='warning', indent=2)
+            self.log(f'Using "signal" as a field attribute is no longer valid. Use the group attribute "signal"', 
+                     level='error')
         elif 'axis' in field.attrs:
-            self.log(f'Using "axis" as a field attribute is deprecated in favor of using the group attribute "axes"', level='warning', indent=2)
+            self.log(f'Using "axis" as a field attribute is no longer valid. Use the group attribute "axes"', 
+                     level='error')
         if 'units' in field.attrs:
-            self.log(f'"{field.attrs["units"]}" are specified as units of "{field.nxname}"', indent=2)
+            if 'units' in tag:
+                self.log(f'"{field.attrs["units"]}" are specified as units of {tag["units"]}')
+            else:
+                self.log(f'"{field.attrs["units"]}" are specified as units')
         elif 'units' in tag:
-            self.log(f'Units of {tag["units"]} not specified', level='warning', indent=2)
+            self.log(f'Units of {tag["units"]} not specified', level='warning')
         for attr in [a for a in field.attrs if a not in ['axis', 'signal', 'units']]:
-            self.log(f'"{attr}" is defined as an attribute', indent=2)
+            self.log(f'"{attr}" is defined as an attribute')
 
     def output_log(self):
         info = 0
@@ -286,13 +276,25 @@ class FieldValidator(Validator):
             self.parent.logged_messages.append((message, level, indent))
         self.logged_messages = []
 
-    def validate(self, tag, field, parent=None):
+    def validate(self, tag, field, parent=None, indent=1):
         if parent:
             self.parent = parent
         else:
             self.parent = self
-        self.log(f'Field: {field.nxpath}', level='all', indent=1)
-        self.log(f'"{field.nxname}" is a valid field in the base class {field.nxgroup.nxclass}', indent=2)     
+        group = field.nxgroup
+        self.indent = indent + 1
+        self.log(f'Field: {field.nxpath}', level='all')
+        self.indent += 1
+        if not is_valid_name(field.nxname):
+            self.log(f'"{field.nxname}" is an invalid name', level='error')
+        if tag:
+            self.log(f'"{field.nxname}" is a valid field in the base class {group.nxclass}')
+        else:    
+            if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
+                self.log(f'Field "{field.nxname}" is an allowed field in the base class {group.nxclass}')
+            else:
+                self.log(f'Field "{field.nxname}" not defined in the base class {group.nxclass}', 
+                         level='warning')
         self.check_type(tag, field)
         self.check_attributes(tag, field)
         self.output_log()
@@ -301,44 +303,39 @@ class FieldValidator(Validator):
 field_validator = FieldValidator()
 
 
-def validate_file(filename, path=None):
- 
-    with nxopen(filename) as root:
-        if path:
-            root = root[path]
-        for item in root.walk():
-            if isinstance(item, NXgroup):
-                validator = get_validator(item.nxclass)
-                validator.validate(item)
+class FileValidator(Validator):
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def walk(self, node, indent=0):
+        if node.nxclass == 'NXfield':
+            yield node, indent
+        else:
+            yield node, indent
+            for child_node in node.entries.values():
+                yield from self.walk(child_node, indent+1)
+
+    def validate(self, path=None):
+        with nxopen(self.filename) as root:
+            if path:
+                parent = root[path]
+            else:
+                parent = root
+            for item, indent in self.walk(parent):
+                if isinstance(item, NXgroup):
+                    validator = get_validator(item.nxclass)
+                    validator.validate(item, indent=indent)
 
 
-def validate_application(application, filename, path='/'):
-    with nxopen(filename) as root:
-        nxpath = path
-    if 'definition' in root:
-        application = root['definition']
-    app_path = package_files('nxvalidate.definitions.applications'
-                             ).joinpath(f'{application}.nxdl.xml')
-    if app_path.exists():
-        tree = ET.parse(app_path)
-    else:
-        return
-    xml_root = tree.getroot()
-    strip_namespace(xml_root)
-    
-    
-    def walk(element, level=0):
-        yield element, level
         for child in element:
-            yield from walk(child, level + 1)
 
-    for elem, level in walk(xml_root):
-        indent = "  " * level
-        print(f"{indent}{elem.tag}: {elem.text.strip() if elem.text else ''}")
-        for name, value in elem.attrib.items():
-            nxpath = nxpath + '/' + elem.attrib['name']
-            group = root[nxpath]
-            print(f"{indent}  @{name} = {value}")
+def validate_file(filename, path=None):
+
+    validator = FileValidator(filename)
+    validator.validate(path)
+
+
 
 
 def report(base_class):
