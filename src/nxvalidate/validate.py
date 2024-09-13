@@ -135,11 +135,18 @@ class GroupValidator(Validator):
         self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
+        if not is_valid_name(group.nxname):
+            self.log(f'"{group.nxname}" is an invalid name', level='error')
         if not self.valid_class:
-            self.log(f'{group.nxclass} is not a valid base class',
-                     level='error')
+            self.log(f'{group.nxclass} is not a valid base class', level='error')
             self.output_log()
             return
+        parent = group.nxgroup
+        if parent:
+            parent_validator = get_validator(parent.nxclass)
+            if group.nxclass not in parent_validator.valid_groups:
+                self.log(f'{group.nxclass} is an invalid class in {parent.nxclass}', 
+                         level='error')            
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
@@ -166,13 +173,6 @@ class GroupValidator(Validator):
                 else:
                     tag = {}
                 field_validator.validate(tag, item, parent=self, indent=indent)
-            elif item.nxclass in self.valid_groups:
-                self.log(f'"{entry}":{item.nxclass} is a valid group in the base class {group.nxclass},')
-            elif is_valid_name(entry):
-                self.log(f'"{entry}":{item.nxclass} is not a valid base class in {group.nxclass}', 
-                         level='warning')
-            else:
-                self.log(f'"{entry}" is an invalid name', level='error')
         self.output_log()
                 
 
