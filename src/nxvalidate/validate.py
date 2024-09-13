@@ -354,10 +354,10 @@ def report(base_class):
 
 def log(message, level='info', indent=0):
     if level == 'info':
-        logger.info(f'{4*indent*" "}{message}')
+        logger.info(f'{2*indent*" "}{message}')
     elif level == 'debug':
-        logger.log(logging.DEBUG, f'{4*indent*" "}{message}')
+        logger.log(logging.DEBUG, f'{2*indent*" "}{message}')
     elif level == 'warning':
-        logger.warning(f'{4*indent*" "}{message}')
+        logger.warning(f'{2*indent*" "}{message}')
     elif level == 'error':
-        logger.error(f'{4*indent*" "}{message}')
+        logger.error(f'{2*indent*" "}{message}')
