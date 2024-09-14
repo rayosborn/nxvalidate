@@ -6,8 +6,8 @@ files](http://www.nexusformat.org/) written in the HDF5 format.
 The latest development version is always available from [NeXpy's GitHub
 repository](https://github.com/nexpy/nxvalidate).
 
-Installing and Running
-======================
+Installation
+============
 Released versions of `nxvalidate` can be installed using either
 
 ```
@@ -20,6 +20,8 @@ The source code can be downloaded from the NeXpy Git repository:
     $ git clone http://github.com/nexpy/nxvalidate.git
 ```
 
+Usage
+=====
 At the moment, the `nxvalidate` package provides a single command-line script.
 
 ```
@@ -42,7 +44,27 @@ options:
   -e, --error           output info messages in addition to warnings and errors
 ```
 
+> *N.B.*, the command is `nxinspect`, rather than `nxvalidate` to avoid
+> confusion with the [C-library](https://github.com/nexusformat/cnxvalidate).
 
+Examples
+--------
+1. To compare the contents of a NeXus file with the base classes defined
+   by the NeXus standard and print conflicting fields or groups, type:
+   ```
+   % nxinspect -f <filename.nxs> -e
+   ```
+   The `--info`, `--warning` and `--error` switches control how much 
+   information is output. The default is `--warning`.
+2. To check whether the contents of the NeXus file conform to the
+   required contents of its application definition, type:
+   ```
+   % nxinspect -f <filename.nxs> -a
+   ```
+3. To print the contents of a base class, type:
+   ```
+   % nxinspect -b <base-class-name>
+   ```
 
 Prerequisites
 =============

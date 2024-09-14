@@ -30,12 +30,10 @@ def main():
                         help = "validate the NeXus file against its application definition")
     parser.add_argument("-i", "--info", action='store_true',
                         help = "output info messages in addition to warnings and errors")
-    parser.add_argument("-d", "--debug", action='store_true',
-                        help = "output info messages in addition to warnings and errors")
     parser.add_argument("-w", "--warning", action='store_true',
-                        help = "output info messages in addition to warnings and errors")
+                        help = "output warning and error messages (default)")
     parser.add_argument("-e", "--error", action='store_true',
-                        help = "output info messages in addition to warnings and errors")
+                        help = "output errors")
     args = parser.parse_args()
 
     if args.info or args.baseclass:
