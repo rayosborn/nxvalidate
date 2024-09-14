@@ -1,19 +1,15 @@
 import logging
 import sys
 import xml.etree.ElementTree as ET
-from pathlib import PosixPath as Path
 
-import numpy as np
 from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 
 from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
                     is_valid_complex, is_valid_float, is_valid_int,
                     is_valid_iso8601, is_valid_name, is_valid_number,
-                    is_valid_posint, is_valid_uint, package_files,
-                    strip_namespace)
+                    is_valid_posint, is_valid_uint, merge_dicts,
+                    package_files, strip_namespace, xml_to_dict)
 
-# Global dictionary of validators 
-validators = {}
 
 def get_logger(): 
     logger = logging.getLogger("NXValidate")
@@ -24,6 +20,10 @@ def get_logger():
 
 
 logger = get_logger()
+
+
+# Global dictionary of validators 
+validators = {}
 
 
 def get_validator(nxclass):
@@ -337,13 +337,95 @@ class FileValidator(Validator):
                     validator.validate(item, indent=indent)
 
 
-        for child in element:
-
 def validate_file(filename, path=None):
-
     validator = FileValidator(filename)
     validator.validate(path)
 
+
+class ApplicationValidator(Validator):
+
+    def __init__(self, application):
+        self.application = application
+        self.xml_dict = self.load_application()
+        self.logged_messages = []
+        self.indent = 0
+        
+    def load_application(self, application=None):
+        if application is None:
+            application = self.application
+        app_path = package_files('nxvalidate.definitions.applications'
+                                 ).joinpath(f'{application}.nxdl.xml')
+        if app_path.exists():
+            tree = ET.parse(app_path)
+        else:
+            return
+        xml_root = tree.getroot()
+        strip_namespace(xml_root)
+        if xml_root.tag != 'definition':
+            raise NeXusError(f'The application definition {application} does not contain the correct root tag.')
+        elif xml_root.attrib['name'] != application:
+            raise NeXusError(
+                f'The name stored in the root tag of the application definition does not match the file name')
+        xml_dict = xml_to_dict(xml_root.find('group'))
+        if xml_root.attrib['extends'] != 'NXobject':
+            xml_extended_dict = self.load_application(xml_root.attrib['extends'])
+            xml_dict = merge_dicts(xml_extended_dict, xml_dict)
+        return xml_dict
+
+    def validate_group(self, xml_dict, nxgroup, level=0):
+        self.indent = level
+        for key, value in xml_dict.items():
+            if key == 'group':
+                for group in value:
+                    self.log(f'Group: {group}', level='all')
+                    self.indent += 1
+                    nxgroups = nxgroup.component(group)
+                    if '@minOccurs' in value[group]:
+                        minOccurs = int(value[group]['@minOccurs'])
+                    else:
+                        minOccurs = 1                        
+                    if len(nxgroups) < minOccurs:
+                        self.log(
+                            f'{len(nxgroups)} {group} groups are in the NeXus file.  At least {minOccurs} are required', level='error')
+                    elif minOccurs == 0:
+                        self.log(f'Optional {group} not in NeXus file', level='warning')
+                    for nxsubgroup in nxgroups:
+                        self.validate_group(value[group], nxsubgroup, level=level+1)
+                    self.indent -= 1
+                    self.output_log()
+            elif key == 'field':
+                for field in value:
+                    self.log(f'Field: {field}', level='all')
+                    self.indent += 1
+                    if field in nxgroup.entries:
+                        self.log(f'"{field}" in NeXus file as required')
+                    else:
+                        self.log(f'"{field}" not in NeXus file', level='warning')
+                    self.indent -= 1
+                    self.output_log()
+        
+    def validate(self, entry):
+        root = entry.nxroot
+        nxpath = entry.nxpath
+        self.validate_group(self.xml_dict, root[nxpath])
+
+
+def validate_application(filename, path=None):
+    with nxopen(filename) as root:
+        if path is None:
+            nxpath = root.NXentry[0].nxpath
+        else:
+            nxpath = path
+        entry = root[nxpath]
+        if not isinstance(entry, NXentry) and not isinstance(entry, NXsubentry):
+            raise NeXusError(f'Path {nxpath} not a NXentry or NXsubentry group')
+        elif 'definition' in entry:
+            application = entry['definition'].nxvalue
+        else:
+            raise NeXusError(f'No application definition defined in {nxpath}')
+
+    validator = ApplicationValidator(application)
+    validator.validate(entry)
 
 
 def output_base_class(base_class):

@@ -230,3 +230,96 @@ def strip_namespace(element):
         element.tag = element.tag.split('}', 1)[1]
     for child in element:
         strip_namespace(child)
+
+
+def convert_xml_dict(xml_dict):
+    """
+    Convert an XML dictionary to a more readable format.
+
+    Parameters
+    ----------
+    xml_dict : dict
+        The XML dictionary to be converted.
+
+    Returns
+    -------
+    dict
+        The converted XML dictionary.
+
+    Notes
+    -----
+    If the XML dictionary contains '@type' and '@name', it will be
+    converted to a dictionary with '@name' as the key. If the XML
+    dictionary contains only '@type', it will be converted to a
+    dictionary with '@type' as the key. If the XML dictionary does not
+    contain '@type' or '@name', it will be returned as is.
+    """
+    if '@type' in xml_dict:
+        if xml_dict['@type'].startswith('NX_') and '@name' in xml_dict:
+            key = '@name'
+        else:
+            key = '@type'
+    elif '@name' in xml_dict:
+        key = '@name'
+    else:
+        return xml_dict
+    return {xml_dict[key]: {k: v for k, v in xml_dict.items() if k != key}}
+
+
+def xml_to_dict(element):
+    """
+    Convert an XML element to a dictionary.
+
+    Parameters
+    ----------
+    element : xml element
+        The XML element to be converted.
+
+    Returns
+    -------
+    dict
+        A dictionary representation of the XML element.
+    """
+    result = {}
+
+    if element.attrib:
+        attrs = element.attrib
+        for attr in attrs:
+            result[f"@{attr}"] = attrs[attr]
+
+    for child in element:
+        if child.tag == 'doc':
+            continue
+        elif child.tag == 'enumeration':
+            result[child.tag] = [item.attrib['value'] for item in child]
+        else:
+            child_dict = convert_xml_dict(xml_to_dict(child))       
+            if child.tag in result:
+                result[child.tag].update(child_dict)
+            else:
+                result[child.tag] = child_dict
+
+    return result
+
+def merge_dicts(dict1, dict2):
+    """
+    Recursively merges two dictionaries into one.
+
+    Parameters
+    ----------
+    dict1 : dict
+        The dictionary to be updated.
+    dict2 : dict
+        The dictionary to update with.
+
+    Returns
+    -------
+    dict
+        The updated dictionary.
+    """
+    for key, value in dict2.items():
+        if key in dict1 and isinstance(dict1[key], dict) and isinstance(value, dict):
+            merge_dicts(dict1[key], value)
+        else:
+            dict1[key] = value
+    return dict1
