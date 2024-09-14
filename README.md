@@ -28,7 +28,7 @@ At the moment, the `nxvalidate` package provides a single command-line script.
 % nxinspect -h
 usage: nxinspect [-h] [-f FILENAME] [-p PATH] [-b BASECLASS] [-a] [-i] [-d] [-w] [-e]
 
-Validates NeXus files.
+Inspects and validates NeXus files.
 
 options:
   -h, --help            show this help message and exit
