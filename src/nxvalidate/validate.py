@@ -159,10 +159,19 @@ class GroupValidator(Validator):
             if 'signal' in group.attrs:
                 signal = group.attrs['signal']
                 if signal not in group.entries:
-                    self.log(f'@signal={signal}" not present in group "{group.nxpath}"',
+                    self.log(f'Signal "{signal}" not present in group "{group.nxpath}"',
                              level='error')
             else:
                 self.log(f'"@signal" not defined in NXdata group "{group.nxpath}"',
+                         level='error')
+            if 'axes' in group.attrs:
+                axes = group.attrs['axes']
+                for axis in axes:
+                    if axis not in group.entries:
+                        self.log(f'Axis {axis}" not present in group "{group.nxpath}"',
+                                 level='error')
+            else:
+                self.log(f'"@axes" not defined in NXdata group "{group.nxpath}"',
                          level='error')
 
         for entry in group.entries: 
@@ -181,11 +190,7 @@ class FieldValidator(Validator):
     def __init__(self):
         super().__init__(nxclass='NXfield')
 
-    def check_type(self, tag, field):
-        if 'type' in tag:
-            dtype = tag['type'] 
-        else:
-            return 
+    def check_type(self, field, dtype):
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
                 self.log(f'"{field.nxname}" is a valid NX_DATE_TIME')
@@ -238,7 +243,7 @@ class FieldValidator(Validator):
             else:
                 self.log(f'"{field.nxname}" is not a valid NX_UINT', level='warning')        
 
-    def check_attributes(self, tag, field):
+    def check_attributes(self, field, units=None):
         if 'signal' in field.attrs:
             self.log(f'Using "signal" as a field attribute is no longer valid. Use the group attribute "signal"', 
                      level='error')
@@ -246,12 +251,12 @@ class FieldValidator(Validator):
             self.log(f'Using "axis" as a field attribute is no longer valid. Use the group attribute "axes"', 
                      level='error')
         if 'units' in field.attrs:
-            if 'units' in tag:
-                self.log(f'"{field.attrs["units"]}" are specified as units of {tag["units"]}')
+            if units:
+                self.log(f'"{field.attrs["units"]}" are specified as units of {units}')
             else:
                 self.log(f'"{field.attrs["units"]}" are specified as units')
-        elif 'units' in tag:
-            self.log(f'Units of {tag["units"]} not specified', level='warning')
+        elif units:
+            self.log(f'Units of {units} not specified', level='warning')
         for attr in [a for a in field.attrs if a not in ['axis', 'signal', 'units']]:
             self.log(f'"{attr}" is defined as an attribute')
 
@@ -295,8 +300,12 @@ class FieldValidator(Validator):
             else:
                 self.log(f'Field "{field.nxname}" not defined in the base class {group.nxclass}', 
                          level='warning')
-        self.check_type(tag, field)
-        self.check_attributes(tag, field)
+        if 'type' in tag:  
+            self.check_type(field, tag['type'])
+        if 'units' in tag:
+            self.check_attributes(field, tag['units'])
+        else:
+            self.check_attributes(field)
         self.output_log()
 
 
