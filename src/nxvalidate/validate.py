@@ -131,7 +131,7 @@ class Validator():
             A dictionary containing the item's attributes.
         """
         try:
-            return {k: v for k, v in element.attrib.items()}
+            return {f"@{k}": v for k, v in element.attrib.items()}
         except Exception:
             return {}
 
@@ -490,10 +490,10 @@ class FieldValidator(Validator):
             else:
                 self.log(f'Field "{field.nxname}" not defined in the base class {group.nxclass}', 
                          level='warning')
-        if 'type' in tag:  
-            self.check_type(field, tag['type'])
-        if 'units' in tag:
-            self.check_attributes(field, tag['units'])
+        if '@type' in tag:  
+            self.check_type(field, tag['@type'])
+        if '@units' in tag:
+            self.check_attributes(field, tag['@units'])
         else:
             self.check_attributes(field)
         self.output_log()
@@ -669,10 +669,10 @@ class ApplicationValidator(Validator):
                     if '@minOccurs' in value[group]:
                         minOccurs = int(value[group]['@minOccurs'])
                     else:
-                        minOccurs = 1                        
+                        minOccurs = 1
                     if len(nxgroups) < minOccurs:
                         self.log(
-                            f'{len(nxgroups)} {group} groups are in the NeXus file.  At least {minOccurs} are required', level='error')
+                            f'{len(nxgroups)} {group} group(s) are in the NeXus file.  At least {minOccurs} are required', level='error')
                     elif minOccurs == 0:
                         self.log(f'Optional {group} not in NeXus file', level='warning')
                     for nxsubgroup in nxgroups:
@@ -681,13 +681,28 @@ class ApplicationValidator(Validator):
                     self.output_log()
             elif key == 'field':
                 for field in value:
-                    self.log(f'Field: {field}', level='all')
-                    self.indent += 1
-                    if field in nxgroup.entries:
-                        self.log(f'"{field}" in NeXus file as required')
+                    if '@minOccurs' in value[field]:
+                        minOccurs = int(value[field]['@minOccurs'])
                     else:
-                        self.log(f'"{field}" not in NeXus file', level='warning')
-                    self.indent -= 1
+                        minOccurs = 1
+                    if field in nxgroup.entries:
+                        field_validator.validate(value[field], nxgroup[field],
+                                                 parent=self, indent=self.indent-1)
+                        self.indent += 1
+                        if minOccurs > 0:
+                            self.log(f'Required field "{field}" is in the NeXus file')
+                        else:
+                            self.log(f'Optional field "{field}" is in the NeXus file')
+                        self.indent -= 1
+                    else:
+                        field_path = nxgroup.nxpath + '/' + field
+                        self.log(f'Field: {field_path}', level='all')
+                        self.indent += 1
+                        if minOccurs > 0:
+                            self.log(f'Required field "{field}" not in the NeXus file', level='error')
+                        else:
+                            self.log(f'Optional field "{field}" not in the NeXus file')
+                        self.indent -= 1
                     self.output_log()
         
     def validate(self, entry):
