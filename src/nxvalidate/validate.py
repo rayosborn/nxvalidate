@@ -11,7 +11,17 @@ from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
                     package_files, strip_namespace, xml_to_dict)
 
 
-def get_logger(): 
+def get_logger():
+    """
+    Returns a logger instance and sets the log level to DEBUG.
+
+    The logger has a stream handler that writes to sys.stdout.
+
+    Returns
+    -------
+    logger : logging.Logger
+        A logger instance.
+    """
     logger = logging.getLogger("NXValidate")
     logger.setLevel(logging.DEBUG)
     stream_handler = logging.StreamHandler(stream=sys.stdout)
@@ -27,6 +37,22 @@ validators = {}
 
 
 def get_validator(nxclass):
+    """
+    Retrieves a validator instance for a given NeXus class.
+
+    Validators are stored in a global dictionary. If a validator has not
+    already been created yet, it is created.
+
+    Parameters
+    ----------
+    nxclass : str
+        The name of the NeXus class to retrieve a validator for.
+
+    Returns
+    -------
+    Validator
+        A validator instance for the specified NeXus class.
+    """
     if nxclass not in validators:
         validators[nxclass] = GroupValidator(nxclass)
     return validators[nxclass]
@@ -35,6 +61,19 @@ def get_validator(nxclass):
 class Validator():
     
     def __init__(self, nxclass=None):
+        """
+        Initializes a new Validator instance.
+
+        Parameters
+        ----------
+        nxclass : str, optional
+            The name of the NeXus class to validate (default is None).
+
+        Returns
+        -------
+        None
+            No return value.
+        """
         self.nxclass = nxclass
         self.logged_messages = []
         self.valid_class = True
@@ -45,6 +84,24 @@ class Validator():
         self.parent = None
 
     def get_root(self):
+        """
+        Retrieves the root element of the NeXus class XML file.
+
+        If the NeXus class is specified and the corresponding XML file
+        exists, this method parses the file and returns its root
+        element. Otherwise, it returns None.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        root : ElementTree.Element or None
+            The root element of the NeXus class definition XML file, or
+            None if the class is not specified or the file does not
+            exist.
+        """
         if self.nxclass:
             file_path = package_files('nxvalidate.definitions.base_classes'
                                       ).joinpath(f'{self.nxclass}.nxdl.xml')
@@ -59,18 +116,52 @@ class Validator():
             root = None
         return root
 
-    def get_attributes(self, item):
+    def get_attributes(self, element):
+        """
+        Retrieves the attributes of a given XML item as a dictionary.
+
+        Parameters
+        ----------
+        element : XML.Element
+            The item from which to retrieve attributes.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the item's attributes.
+        """
         try:
-            return {k: v for k, v in item.attrib.items()}
+            return {k: v for k, v in element.attrib.items()}
         except Exception:
             return {}
 
     def log(self, message, level='info', indent=None):
+        """
+        Logs a message with a specified level and indentation.
+
+        Parameters
+        ----------
+        message : str
+            The message to be logged.
+        level : str, optional
+            The level of the message (default is 'info').
+        indent : int, optional
+            The indentation level of the message (default is None).
+        """
         if indent is None:
             indent = self.indent
         self.logged_messages.append((message, level, indent))
 
     def output_log(self):
+        """
+        Outputs the logged messages and resets the log.
+
+        This function iterates over the logged messages, counts the
+        number of messages at each level, and logs each message using
+        the log function. If the logger level is set to WARNING or ERROR
+        and there are no messages at that level, the function resets the
+        log and returns without logging any messages.
+        """
         info = 0
         warning = 0
         error = 0
@@ -98,6 +189,14 @@ class Validator():
 class GroupValidator(Validator):
 
     def __init__(self, nxclass):
+        """
+        Initialize a GroupValidator instance with the given NeXus class.
+
+        Parameters
+        ----------
+        nxclass : str
+            The NeXus class of the group to be validated.
+        """
         super().__init__(nxclass)
         if self.valid_class:
             self.valid_fields = self.get_valid_fields()
@@ -105,6 +204,16 @@ class GroupValidator(Validator):
             self.valid_attributes = self.get_valid_attributes()
 
     def get_valid_fields(self):
+        """
+        Retrieves the valid fields from the XML root.
+
+        Returns
+        -------
+        valid_fields : dict
+            A dictionary containing the valid fields, where the keys are
+            the field names and the values are the attributes of the
+            field.
+        """
         valid_fields = {}
         if self.root is not None:
             for field in self.root.findall('field'):
@@ -114,6 +223,16 @@ class GroupValidator(Validator):
         return valid_fields
     
     def get_valid_groups(self):
+        """
+        Retrieves the valid groups from the XML root.
+
+        Returns
+        -------
+        valid_groups : dict
+            A dictionary containing the valid groups, where the keys are
+            the group types and the values are the attributes of the
+            group.
+        """
         valid_groups = {}
         if self.root is not None:
             for group in self.root.findall('group'):
@@ -123,6 +242,16 @@ class GroupValidator(Validator):
         return valid_groups
     
     def get_valid_attributes(self):
+        """
+        Retrieves the valid attributes from the XML root.
+
+        Returns
+        -------
+        valid_attrs : dict
+            A dictionary containing the valid attributes, where the keys
+            are the attribute names and the values are the attribute
+            values.
+        """
         valid_attrs = {}
         if self.root is not None:
             for attr in self.root.findall('attribute'):
@@ -132,6 +261,19 @@ class GroupValidator(Validator):
         return valid_attrs
     
     def validate(self, group, indent=0): 
+        """
+        Validates a given group against the NeXus standard.
+
+        This function checks the validity of a group's name, class, and
+        attributes. It also recursively validates the group's entries.
+
+        Parameters
+        ----------
+        group : object
+            The group to be validated.
+        indent : int, optional
+            The indentation level for logging (default is 0).
+        """
         self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
@@ -188,9 +330,22 @@ class GroupValidator(Validator):
 class FieldValidator(Validator):
 
     def __init__(self):
+        """
+        Initializes a FieldValidator instance.
+        """
         super().__init__(nxclass='NXfield')
 
     def check_type(self, field, dtype):
+        """
+        Checks the data type of a given field.
+
+        Parameters
+        ----------
+        field : object
+            The field to be validated.
+        dtype : str
+            The NeXus data type to validate against.
+        """
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
                 self.log(f'"{field.nxname}" is a valid NX_DATE_TIME')
@@ -244,6 +399,17 @@ class FieldValidator(Validator):
                 self.log(f'"{field.nxname}" is not a valid NX_UINT', level='warning')        
 
     def check_attributes(self, field, units=None):
+        """
+        Checks the attributes of a given field.
+
+        Parameters
+        ----------
+        field : 
+            The field to check attributes for.
+        units : optional
+            The units of the field. If provided, checks if the units are
+            specified in the field attributes.
+        """
         if 'signal' in field.attrs:
             self.log(f'Using "signal" as a field attribute is no longer valid. Use the group attribute "signal"', 
                      level='error')
@@ -261,6 +427,16 @@ class FieldValidator(Validator):
             self.log(f'"{attr}" is defined as an attribute')
 
     def output_log(self):
+        """
+        Outputs the logged messages and resets the log.
+
+        This function iterates over the logged messages, counts the
+        number of messages at each level, and logs each message using
+        the log function. If the logger level is not set to INFO and
+        there are no messages at the WARNING or ERROR level, the
+        function resets the log and returns without logging any
+        messages.
+        """
         info = 0
         warning = 0
         error = 0
@@ -282,6 +458,20 @@ class FieldValidator(Validator):
         self.logged_messages = []
 
     def validate(self, tag, field, parent=None, indent=1):
+        """
+        Validates a field in a NeXus group.
+
+        Parameters
+        ----------
+        tag : dict
+            A dictionary containing information about the field.
+        field : object
+            The field to be validated.
+        parent : object, optional
+            The parent object. Defaults to None.
+        indent : int, optional
+            The indentation level. Defaults to 1.
+        """
         if parent:
             self.parent = parent
         else:
@@ -315,9 +505,35 @@ field_validator = FieldValidator()
 class FileValidator(Validator):
 
     def __init__(self, filename):
+        """
+        Initializes a FileValidator instance with a filename.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to be validated.
+        """
         self.filename = filename
 
     def walk(self, node, indent=0):
+        """
+        Recursively walks through a node and its children.
+        
+        This function yeilds each node and its corresponding indentation
+        level.
+
+        Parameters
+        ----------
+        node : object
+            The node to start walking from.
+        indent : int, optional
+            The current indentation level (default is 0).
+
+        Yields
+        ------
+        tuple
+            A tuple containing the current node and indentation level.
+        """
         if node.nxclass == 'NXfield':
             yield node, indent
         else:
@@ -326,6 +542,21 @@ class FileValidator(Validator):
                 yield from self.walk(child_node, indent+1)
 
     def validate(self, path=None):
+        """
+        Validates a NeXus file by walking through its tree structure.
+        
+        Each group is validated by its corresponding GroupValidator.
+
+        Parameters
+        ----------
+        path : str, optional
+            The path to the group to start validation from (default is
+            None, which means the entire file will be validated).
+
+        Returns
+        -------
+        None
+        """
         with nxopen(self.filename) as root:
             if path:
                 parent = root[path]
@@ -338,6 +569,21 @@ class FileValidator(Validator):
 
 
 def validate_file(filename, path=None):
+    """
+    Validate a NeXus file by walking through its tree structure.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the NeXus file to be validated.
+    path : str, optional
+        The path to the group to start validation from. Defaults to
+        None, which means the entire file will be validated.
+
+    Returns
+    -------
+    None
+    """
     validator = FileValidator(filename)
     validator.validate(path)
 
@@ -345,12 +591,34 @@ def validate_file(filename, path=None):
 class ApplicationValidator(Validator):
 
     def __init__(self, application):
+        """
+        Initializes an instance of the ApplicationValidator class.
+
+        Parameters
+        ----------
+        application : str
+            The name of the application to be validated.
+        """
         self.application = application
         self.xml_dict = self.load_application()
         self.logged_messages = []
         self.indent = 0
         
     def load_application(self, application=None):
+        """
+        Loads an application definition from an XML file.
+
+        Parameters
+        ----------
+        application : str, optional
+            The name of the application to be loaded. If not provided,
+            the application name stored in the instance will be used.
+
+        Returns
+        -------
+        dict
+            A dictionary representation of the application definition.
+        """
         if application is None:
             application = self.application
         app_path = package_files('nxvalidate.definitions.applications'
@@ -373,6 +641,24 @@ class ApplicationValidator(Validator):
         return xml_dict
 
     def validate_group(self, xml_dict, nxgroup, level=0):
+        """
+        Validates a NeXus group against an XML definition.
+
+        This function checks if the provided NeXus group matches the
+        structure defined in the given XML dictionary. It recursively
+        validates all subgroups and fields within the group, ensuring
+        that the required components are present and correctly
+        formatted.
+
+        Parameters
+        ----------
+        xml_dict : dict
+            The XML dictionary containing the definition of the group.
+        nxgroup : NXgroup
+            The NeXus group to be validated.
+        level : int, optional
+            The current indentation level (default is 0).
+        """
         self.indent = level
         for key, value in xml_dict.items():
             if key == 'group':
@@ -405,12 +691,37 @@ class ApplicationValidator(Validator):
                     self.output_log()
         
     def validate(self, entry):
+        """
+        Validates a NeXus entry against an XML definition.
+
+        This function checks if the provided NeXus entry matches the
+        structure defined in the given XML dictionary. It recursively
+        validates all subgroups and fields within the entry, ensuring
+        that the required components are present and correctly
+        formatted.
+
+        Parameters
+        ----------
+        entry : object
+            The NeXus entry to be validated.
+        """
         root = entry.nxroot
         nxpath = entry.nxpath
         self.validate_group(self.xml_dict, root[nxpath])
 
 
 def validate_application(filename, path=None):
+    """
+    Validates a NeXus application definition against a given XML schema.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the NeXus file to be validated.
+    path : str, optional
+        The path to the NeXus entry to be validated. If not provided,
+        the first NXentry group will be used.
+    """
     with nxopen(filename) as root:
         if path is None:
             nxpath = root.NXentry[0].nxpath
@@ -429,6 +740,14 @@ def validate_application(filename, path=None):
 
 
 def output_base_class(base_class):
+    """
+    Outputs the base class attributes, groups, and fields.
+
+    Parameters
+    ----------
+    base_class : str
+        The name of the base class to be output.
+    """
     validator = get_validator(base_class)
     log(f"Base Class: {base_class}")
     if validator.valid_attributes:
@@ -445,6 +764,18 @@ def output_base_class(base_class):
 
 
 def log(message, level='info', indent=0):
+    """
+    Logs a message at a specified level with optional indentation.
+
+    Parameters
+    ----------
+    message : str
+        The message to be logged.
+    level : str, optional
+        The level of the log message (default is 'info').
+    indent : int, optional
+        The number of spaces to indent the log message (default is 0).
+    """
     if level == 'info':
         logger.info(f'{2*indent*" "}{message}')
     elif level == 'debug':
