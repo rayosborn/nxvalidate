@@ -39,7 +39,6 @@ options:
                         name of the base class to be listed
   -a, --application     validate the NeXus file against its application definition
   -i, --info            output info messages in addition to warnings and errors
-  -d, --debug           output info messages in addition to warnings and errors
   -w, --warning         output info messages in addition to warnings and errors
   -e, --error           output info messages in addition to warnings and errors
 ```
