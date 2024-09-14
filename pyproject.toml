@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "nxvalidate"
 version = "0.1.0"
 description = "A Python package for validating NeXus files"
+readme = "README.md"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",

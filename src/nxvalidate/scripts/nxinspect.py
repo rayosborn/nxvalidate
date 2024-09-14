@@ -18,8 +18,8 @@ from nxvalidate.validate import (logger, output_base_class,
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="nxvalidate",
-        description="Validates NeXus files.")
+        prog="nxinspect",
+        description="Inspects and validates NeXus files.")
     parser.add_argument("-f", "--filename", nargs = 1,
                         help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,
