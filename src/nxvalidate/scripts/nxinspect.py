@@ -12,6 +12,7 @@ import logging
 import xml.etree.ElementTree as ET
 
 from nxvalidate.validate import logger, report, validate_application, validate_file
+from nexusformat.nexus import NeXusError
 
 
 def main():
@@ -22,18 +23,18 @@ def main():
                         help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,
                         help = "path to group to be validated in the NeXus file")
-    parser.add_argument("-a", "--application", nargs = 1,
-                        help = "name of the application used to validate the NeXus file")
     parser.add_argument("-b", "--baseclass", nargs = 1,
                         help = "name of the base class to be listed")
+    parser.add_argument("-a", "--application", action='store_true',
+                        help = "validate the NeXus file against its application definition")
     parser.add_argument("-i", "--info", action='store_true',
-                        help = "Output info messages in addition to warnings and errors")
+                        help = "output info messages in addition to warnings and errors")
     parser.add_argument("-d", "--debug", action='store_true',
-                        help = "Output info messages in addition to warnings and errors")
+                        help = "output info messages in addition to warnings and errors")
     parser.add_argument("-w", "--warning", action='store_true',
-                        help = "Output info messages in addition to warnings and errors")
+                        help = "output info messages in addition to warnings and errors")
     parser.add_argument("-e", "--error", action='store_true',
-                        help = "Output info messages in addition to warnings and errors")
+                        help = "output info messages in addition to warnings and errors")
     args = parser.parse_args()
 
     if args.info or args.baseclass:
@@ -52,13 +53,15 @@ def main():
     elif args.filename:
         if args.application:
             if args.path:
-                validate_application(args.application[0], args.filename[0], args.path[0])
+                validate_application(args.filename[0], args.path[0])
             else:
-                validate_application(args.appication[0], args.filename[0])
+                validate_application(args.filename[0])
         elif args.path:
             validate_file(args.filename[0], args.path[0])
         else:
             validate_file(args.filename[0])
+    else:
+        raise NeXusError('A file or base class must be specified')
 
 
 if __name__ == "__main__":
