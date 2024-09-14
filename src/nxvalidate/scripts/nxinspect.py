@@ -9,10 +9,11 @@
 
 import argparse
 import logging
-import xml.etree.ElementTree as ET
 
-from nxvalidate.validate import logger, report, validate_application, validate_file
 from nexusformat.nexus import NeXusError
+
+from nxvalidate.validate import (logger, output_base_class,
+                                 validate_application, validate_file)
 
 
 def main():
@@ -49,7 +50,7 @@ def main():
         logger.setLevel(logging.WARNING)
 
     if args.baseclass:
-        report(args.baseclass[0])
+        output_base_class(args.baseclass[0])
     elif args.filename:
         if args.application:
             if args.path:

@@ -337,8 +337,7 @@ def validate_file(filename, path=None):
 
 
 
-
-def report(base_class):
+def output_base_class(base_class):
     validator = get_validator(base_class)
     log(f"Base Class: {base_class}")
     if validator.valid_attributes:
