@@ -139,7 +139,14 @@ class Validator():
             A dictionary containing the item's attributes.
         """
         try:
-            return {f"@{k}": v for k, v in element.attrib.items()}
+            result = {}
+            result = {f"@{k}": v for k, v in element.attrib.items()}
+            for child in element:
+                if child.tag == 'enumeration':
+                    result[child.tag] = [item.attrib['value'] for item in child]
+                elif child.tag != 'doc':
+                    result[child.tag] = self.get_attributes(child)
+            return result
         except Exception:
             return {}
 
@@ -783,19 +790,29 @@ def inspect_base_class(base_class):
     if validator.valid_groups:
         log('Allowed Groups', indent=1)
         for group in validator.valid_groups:
-            attrs = {k: v for k, v in validator.valid_groups[group].items() if v != group}
+            items = {k: v for k, v in validator.valid_groups[group].items() if v != group}
             if '@name' in validator.valid_groups[group]:
                 name = validator.valid_groups[group]['@name']
                 group = validator.valid_groups[group]['@type']
-                attrs = {k: v for k, v in attrs.items() if v != group}
+                attrs = {k: v for k, v in items.items() if v != group and k.startswith('@')}
                 log(f"{name}[{group}]: {attrs}", indent=2)
+                tags = {k: v for k, v in items.items() if not k.startswith('@')}
+                if tags:
+                    log(f"{tags}", indent=3)
             else:
-                log(f"{group}: {attrs}", indent=2)
+                log(f"{group}: {items}", indent=2)
+                tags = {k: v for k, v in items.items() if not k.startswith('@')}
+                for tag in tags:
+                    log(f"{tag}: {tags[tag]}", indent=3)
     if validator.valid_fields:
         log('Defined Fields', indent=1)              
         for field in validator.valid_fields:
-            attrs = {k: v for k, v in validator.valid_fields[field].items() if v != field}
+            items = {k: v for k, v in validator.valid_fields[field].items() if v != field}
+            attrs = {k: v for k, v in items.items() if k.startswith('@')}
             log(f"{field}: {attrs}", indent=2)
+            tags = {k: v for k, v in items.items() if not k.startswith('@')}
+            for tag in tags:
+                log(f"{tag}: {tags[tag]}", indent=3)
 
 
 def log(message, level='info', indent=0):
