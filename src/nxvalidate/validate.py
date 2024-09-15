@@ -416,7 +416,47 @@ class FieldValidator(Validator):
             else:
                 self.log(f'"{field.nxname}" is not a valid NX_UINT', level='warning')        
 
-    def check_attributes(self, field, units=None):
+    def check_dimensions(self, field, dimensions):
+        """
+        Checks the dimensions of a given field against the specified dimensions.
+        
+        Parameters
+        ----------
+        field : 
+            The field to check dimensions for.
+        dimensions : 
+            The base class attribute containing the dimensions to check
+            against.
+        """
+
+        if '@rank' in dimensions:
+            try:
+                rank = int(dimensions['@rank'])
+            except ValueError:
+                return
+            if field.ndim == rank:
+                self.log(f'The field has the correct rank of {rank}')
+            else:
+                self.log(f'The field has rank {field.ndim}, should be {rank}', level='error')
+
+    def check_enumeration(self, field, enumerations):
+        """
+        Checks if a field's value is a valid member of an enumerated list.
+
+        Parameters
+        ----------
+        field : 
+            The field to check the value for.
+        enumerations : 
+            The list of valid enumerated values.
+        """
+        if field.nxvalue in enumerations:
+            self.log(f'The field value is a valid member of the enumerated list')
+        else:
+            self.log(f'The field value is not a valid member of the enumerated list', 
+                     level='error') 
+
+    def check_attributes(self, field, attributes=None, units=None):
         """
         Checks the attributes of a given field.
 
@@ -441,7 +481,15 @@ class FieldValidator(Validator):
                 self.log(f'"{field.attrs["units"]}" are specified as units')
         elif units:
             self.log(f'Units of {units} not specified', level='warning')
-        for attr in [a for a in field.attrs if a not in ['axis', 'signal', 'units']]:
+        checked_attributes = ['axis', 'signal', 'units']
+        if attributes:
+            for attr in attributes:
+                if attr in field.attrs:
+                    self.log(f'The suggested attribute "{attr}" is defined')
+                else:
+                    self.log(f'The suggested attribute "{attr}" is not defined', level='warning')
+            checked_attributes += attributes
+        for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'"{attr}" is defined as an attribute')
 
     def output_log(self):
@@ -512,10 +560,19 @@ class FieldValidator(Validator):
             self.log(f'Field "{field.nxname}" is deprecated. {tag["@deprecated"]}', level='warning')
         if '@type' in tag:  
             self.check_type(field, tag['@type'])
-        if '@units' in tag:
-            self.check_attributes(field, tag['@units'])
+        if 'dimensions' in tag:
+            self.check_dimensions(field, tag['dimensions'])
+        if 'enumeration' in tag:
+            self.check_enumeration(field, tag['enumeration'])
+        if 'attribute' in tag:
+            attributes = tag['attribute'].values()
         else:
-            self.check_attributes(field)
+            attributes = None
+        if '@units' in tag:
+            units = tag['@units']
+        else:
+            units = None
+        self.check_attributes(field, attributes=attributes, units=units)
         self.output_log()
 
 
