@@ -933,7 +933,7 @@ def inspect_base_class(base_class):
                 log(f"{tag}: {tags[tag]}", indent=3)
 
 
-def log(message, level='info', indent=0):
+def log(message, level='info', indent=0, width=100):
     """
     Logs a message at a specified level with optional indentation.
 
@@ -946,6 +946,8 @@ def log(message, level='info', indent=0):
     indent : int, optional
         The number of spaces to indent the log message (default is 0).
     """
+    if len(message) + 4*indent > width:
+        message = message[:width - 4*indent - 3] + '...'
     if level == 'info':
         logger.info(f'{4*indent*" "}{message}')
     elif level == 'debug':
