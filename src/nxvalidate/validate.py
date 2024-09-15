@@ -244,8 +244,11 @@ class GroupValidator(Validator):
         valid_groups = {}
         if self.root is not None:
             for group in self.root.findall('group'):
+                group_name = group.get('name')
                 group_type = group.get('type')
-                if group_type:
+                if group_name:
+                    valid_groups[group_name] = self.get_attributes(group)
+                elif group_type:
                     valid_groups[group_type] = self.get_attributes(group)
         return valid_groups
     
@@ -296,7 +299,7 @@ class GroupValidator(Validator):
             parent_validator = get_validator(parent.nxclass)
             if group.nxclass not in parent_validator.valid_groups:
                 self.log(f'{group.nxclass} is an invalid class in {parent.nxclass}', 
-                         level='error')            
+                         level='error')
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
@@ -780,11 +783,19 @@ def inspect_base_class(base_class):
     if validator.valid_groups:
         log('Allowed Groups', indent=1)
         for group in validator.valid_groups:
-            log(f"{group}", indent=2)
+            attrs = {k: v for k, v in validator.valid_groups[group].items() if v != group}
+            if '@name' in validator.valid_groups[group]:
+                name = validator.valid_groups[group]['@name']
+                group = validator.valid_groups[group]['@type']
+                attrs = {k: v for k, v in attrs.items() if v != group}
+                log(f"{name}[{group}]: {attrs}", indent=2)
+            else:
+                log(f"{group}: {attrs}", indent=2)
     if validator.valid_fields:
         log('Defined Fields', indent=1)              
         for field in validator.valid_fields:
-            log(f"{field}: {validator.valid_fields[field]}", indent=2)
+            attrs = {k: v for k, v in validator.valid_fields[field].items() if v != field}
+            log(f"{field}: {attrs}", indent=2)
 
 
 def log(message, level='info', indent=0):

@@ -262,7 +262,7 @@ def convert_xml_dict(xml_dict):
     contain '@type' or '@name', it will be returned as is.
     """
     if '@type' in xml_dict:
-        if xml_dict['@type'].startswith('NX_') and '@name' in xml_dict:
+        if '@name' in xml_dict:
             key = '@name'
         else:
             key = '@type'
