@@ -12,7 +12,7 @@ import logging
 
 from nexusformat.nexus import NeXusError
 
-from nxvalidate.validate import (logger, output_base_class,
+from nxvalidate.validate import (logger, inspect_base_class,
                                  validate_application, validate_file)
 
 
@@ -47,7 +47,7 @@ def main():
 
     if args.baseclass:
         baseclass = args.baseclass[0]
-        output_base_class(baseclass)
+        inspect_base_class(baseclass)
     elif args.filename:
         filename = args.filename[0]
         if args.path:

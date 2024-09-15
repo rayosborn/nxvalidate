@@ -1,3 +1,10 @@
+# -----------------------------------------------------------------------------
+# Copyright (c) 2024, Kaitlyn Marlor, Ray Osborn, Justin Wozniak.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file COPYING, distributed with this software.
+# -----------------------------------------------------------------------------
 import logging
 import sys
 import xml.etree.ElementTree as ET
@@ -754,7 +761,7 @@ def validate_application(filename, path=None, application=None):
         validator.validate(entry)
 
 
-def output_base_class(base_class):
+def inspect_base_class(base_class):
     """
     Outputs the base class attributes, groups, and fields.
 
