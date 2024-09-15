@@ -366,55 +366,55 @@ class FieldValidator(Validator):
         """
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                self.log(f'"{field.nxname}" is a valid NX_DATE_TIME')
+                self.log('This field is a valid NX_DATE_TIME')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_DATE_TIME', level='warning')
+                self.log('This field is not a valid NX_DATE_TIME', level='warning')
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_INT')
+                self.log('This field is a valid NX_INT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_INT', level='warning')
+                self.log('This field is not a valid NX_INT', level='warning')
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_FLOAT')
+                self.log('This field is a valid NX_FLOAT')
             else:
-                self.log(f'"{field.nxname}" is not a valid fNX_FLOAT', level='warning')
+                self.log('This field is not a valid fNX_FLOAT', level='warning')
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_BOOLEAN')
+                self.log('This field is a valid NX_BOOLEAN')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_BOOLEAN', level='warning')         
+                self.log('This field is not a valid NX_BOOLEAN', level='warning')         
         elif dtype == 'NX_CHAR':
             if is_valid_char(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_CHAR')
+                self.log('This field is a valid NX_CHAR')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_CHAR',
+                self.log('This field is not a valid NX_CHAR',
                          level='warning')                  
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_CHAR_OR_NUMBER')
+                self.log('This field is a valid NX_CHAR_OR_NUMBER')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_CHAR_OR_NUMBER', level='warning')                
+                self.log('This field is not a valid NX_CHAR_OR_NUMBER', level='warning')                
         elif dtype == 'NX_COMPLEX':
             if is_valid_complex(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_COMPLEX value')
+                self.log('This field is a valid NX_COMPLEX value')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_COMPLEX value', level='warning') 
+                self.log('This field is not a valid NX_COMPLEX value', level='warning') 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_NUMBER')
+                self.log('This field is a valid NX_NUMBER')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_NUMBER', level='warning')       
+                self.log('This field is not a valid NX_NUMBER', level='warning')       
         elif dtype == 'NX_POSINT':
             if is_valid_posint(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_POSINT')
+                self.log('This field is a valid NX_POSINT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_POSINT', level='warning')    
+                self.log(f'This field is not a valid NX_POSINT', level='warning')    
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
-                self.log(f'"{field.nxname}" is a valid NX_UINT')
+                self.log(f'This field is a valid NX_UINT')
             else:
-                self.log(f'"{field.nxname}" is not a valid NX_UINT', level='warning')        
+                self.log(f'This field is not a valid NX_UINT', level='warning')        
 
     def check_dimensions(self, field, dimensions):
         """
@@ -549,15 +549,15 @@ class FieldValidator(Validator):
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
         if tag:
-            self.log(f'"{field.nxname}" is a valid field in the base class {group.nxclass}')
+            self.log(f'This is a valid field in the base class {group.nxclass}')
         else:    
             if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
-                self.log(f'Field "{field.nxname}" is an allowed field in the base class {group.nxclass}')
+                self.log(f'This is an allowed field in the base class {group.nxclass}')
             else:
-                self.log(f'Field "{field.nxname}" not defined in the base class {group.nxclass}', 
+                self.log(f'This field is not defined in the base class {group.nxclass}', 
                          level='warning')
         if '@deprecated' in tag:
-            self.log(f'Field "{field.nxname}" is deprecated. {tag["@deprecated"]}', level='warning')
+            self.log(f'This field is now deprecated. {tag["@deprecated"]}', level='warning')
         if '@type' in tag:  
             self.check_type(field, tag['@type'])
         if 'dimensions' in tag:
@@ -739,20 +739,29 @@ class ApplicationValidator(Validator):
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
-                    self.log(f'Group: {group}', level='all')
-                    self.indent += 1
-                    nxgroups = nxgroup.component(group)
                     if '@minOccurs' in value[group]:
                         minOccurs = int(value[group]['@minOccurs'])
                     else:
                         minOccurs = 1
+                    if '@type' in value[group]:
+                        name = group
+                        group = value[group]['@type']
+                        self.log(f'Group: {name}: {group}', level='all')
+                    else:
+                        name = None
+                        self.log(f'Group: {group}', level='all')
+                    self.indent += 1
+                    nxgroups = nxgroup.component(group)
                     if len(nxgroups) < minOccurs:
                         self.log(
                             f'{len(nxgroups)} {group} group(s) are in the NeXus file.  At least {minOccurs} are required', level='error')
                     elif minOccurs == 0:
-                        self.log(f'Optional {group} not in NeXus file', level='warning')
+                        self.log(f'This optional group is not in the NeXus file', level='warning')
                     for nxsubgroup in nxgroups:
-                        self.validate_group(value[group], nxsubgroup, level=level+1)
+                        if name:
+                            self.validate_group(value[name], nxsubgroup, level=level+1)
+                        else:
+                            self.validate_group(value[group], nxsubgroup, level=level+1)
                     self.indent -= 1
                     self.output_log()
             elif key == 'field':
@@ -766,18 +775,18 @@ class ApplicationValidator(Validator):
                                                  parent=self, indent=self.indent-1)
                         self.indent += 1
                         if minOccurs > 0:
-                            self.log(f'Required field "{field}" is in the NeXus file')
+                            self.log(f'This is a required field in the NeXus file')
                         else:
-                            self.log(f'Optional field "{field}" is in the NeXus file')
+                            self.log(f'This is an optional field in the NeXus file')
                         self.indent -= 1
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'Field: {field_path}', level='all')
                         self.indent += 1
                         if minOccurs > 0:
-                            self.log(f'Required field "{field}" not in the NeXus file', level='error')
+                            self.log(f'This required field is not in the NeXus file', level='error')
                         else:
-                            self.log(f'Optional field "{field}" not in the NeXus file')
+                            self.log(f'Thisptional field is not in the NeXus file')
                         self.indent -= 1
                     self.output_log()
         
@@ -886,10 +895,10 @@ def log(message, level='info', indent=0):
         The number of spaces to indent the log message (default is 0).
     """
     if level == 'info':
-        logger.info(f'{2*indent*" "}{message}')
+        logger.info(f'{4*indent*" "}{message}')
     elif level == 'debug':
-        logger.log(logging.DEBUG, f'{2*indent*" "}{message}')
+        logger.log(logging.DEBUG, f'{4*indent*" "}{message}')
     elif level == 'warning':
-        logger.warning(f'{2*indent*" "}{message}')
+        logger.warning(f'{4*indent*" "}{message}')
     elif level == 'error':
-        logger.error(f'{2*indent*" "}{message}')
+        logger.error(f'{4*indent*" "}{message}')
