@@ -498,6 +498,8 @@ class FieldValidator(Validator):
             else:
                 self.log(f'Field "{field.nxname}" not defined in the base class {group.nxclass}', 
                          level='warning')
+        if '@deprecated' in tag:
+            self.log(f'Field "{field.nxname}" is deprecated. {tag["@deprecated"]}', level='warning')
         if '@type' in tag:  
             self.check_type(field, tag['@type'])
         if '@units' in tag:
