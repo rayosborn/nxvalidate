@@ -22,19 +22,19 @@ def main():
         prog="nxinspect",
         description="Inspects and validates NeXus files.")
     parser.add_argument("-f", "--filename", nargs = 1,
-                        help="name of the NeXus file to be validated")
+        help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,
-                        help = "path to group to be validated in the NeXus file")
+        help = "path to group to be validated in the NeXus file")
     parser.add_argument("-a", "--application", nargs='?', const=True,
-                        help = "validate the NeXus file against its application definition")
+        help = "validate the NeXus file against its application definition")
     parser.add_argument("-b", "--baseclass", nargs = 1,
-                        help = "name of the base class to be listed")
+        help = "name of the base class to be listed")
     parser.add_argument("-i", "--info", action='store_true',
-                        help = "output info messages in addition to warnings and errors")
+        help = "output info messages in addition to warnings and errors")
     parser.add_argument("-w", "--warning", action='store_true',
-                        help = "output warning and error messages (default)")
+        help = "output warning and error messages (default)")
     parser.add_argument("-e", "--error", action='store_true',
-                        help = "output errors")
+        help = "output errors")
     parser.add_argument('-v', '--version', action='version',
                         version='%(prog)s v'+nxvalidate.__version__)
     args = parser.parse_args()
