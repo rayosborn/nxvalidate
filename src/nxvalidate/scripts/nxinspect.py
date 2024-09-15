@@ -12,6 +12,7 @@ import logging
 
 from nexusformat.nexus import NeXusError
 
+import nxvalidate
 from nxvalidate.validate import (logger, inspect_base_class,
                                  validate_application, validate_file)
 
@@ -34,6 +35,8 @@ def main():
                         help = "output warning and error messages (default)")
     parser.add_argument("-e", "--error", action='store_true',
                         help = "output errors")
+    parser.add_argument('-v', '--version', action='version',
+                        version='%(prog)s v'+nxvalidate.__version__)
     args = parser.parse_args()
 
     if args.info or args.baseclass:

@@ -26,7 +26,8 @@ At the moment, the `nxvalidate` package provides a single command-line script.
 
 ```
 % nxinspect -h
-usage: nxinspect [-h] [-f FILENAME] [-p PATH] [-b BASECLASS] [-a] [-i] [-d] [-w] [-e]
+usage: nxinspect [-h] [-f FILENAME] [-p PATH] [-a [APPLICATION]]
+                 [-b BASECLASS] [-i] [-w] [-e] [-v]
 
 Inspects and validates NeXus files.
 
@@ -42,6 +43,7 @@ options:
   -i, --info            output info messages in addition to warnings and errors
   -w, --warning         output info messages in addition to warnings and errors
   -e, --error           output info messages in addition to warnings and errors
+  -v, --version         show program's version number and exit
 ```
 
 > *N.B.*, the command is `nxinspect`, rather than `nxvalidate` to avoid
