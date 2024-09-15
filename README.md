@@ -37,7 +37,8 @@ options:
   -p PATH, --path PATH  path to group to be validated in the NeXus file
   -b BASECLASS, --baseclass BASECLASS
                         name of the base class to be listed
-  -a, --application     validate the NeXus file against its application definition
+  -a [APPLICATION], --application [APPLICATION]
+                        validate the NeXus file against its application definition
   -i, --info            output info messages in addition to warnings and errors
   -w, --warning         output info messages in addition to warnings and errors
   -e, --error           output info messages in addition to warnings and errors
@@ -56,11 +57,17 @@ Examples
    The `--info`, `--warning` and `--error` switches control how much 
    information is output. The default is `--warning`.
 2. To check whether the contents of the NeXus file conform to the
-   required contents of its application definition, type:
+   required contents of the application definition specifed in the file,
+   type:
    ```
    % nxinspect -f <filename.nxs> -a
    ```
-3. To print the contents of a base class, type:
+3. To check whether the contents of the NeXus file conform to the
+   required contents of an application definition file, type:
+   ```
+   % nxinspect -f <filename.nxs> -a <application.nxdl.xml>
+   ```
+4. To print the contents of a base class, type:
    ```
    % nxinspect -b <base-class-name>
    ```

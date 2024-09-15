@@ -1,6 +1,7 @@
 import logging
 import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 
@@ -584,6 +585,8 @@ def validate_file(filename, path=None):
     -------
     None
     """
+    if not Path(filename).exists():
+        raise NeXusError(f'File {filename} does not exist')
     validator = FileValidator(filename)
     validator.validate(path)
 
@@ -599,12 +602,11 @@ class ApplicationValidator(Validator):
         application : str
             The name of the application to be validated.
         """
-        self.application = application
-        self.xml_dict = self.load_application()
+        self.xml_dict = self.load_application(application)
         self.logged_messages = []
         self.indent = 0
         
-    def load_application(self, application=None):
+    def load_application(self, application):
         """
         Loads an application definition from an XML file.
 
@@ -619,21 +621,19 @@ class ApplicationValidator(Validator):
         dict
             A dictionary representation of the application definition.
         """
-        if application is None:
-            application = self.application
-        app_path = package_files('nxvalidate.definitions.applications'
-                                 ).joinpath(f'{application}.nxdl.xml')
+        if Path(application).exists():
+            app_path = Path(application).resolve()
+        else:
+            app_path = package_files('nxvalidate.definitions.applications'
+                                     ).joinpath(f'{application}.nxdl.xml')
         if app_path.exists():
             tree = ET.parse(app_path)
         else:
-            return
+            raise NeXusError(f'The application definition {application} does not exist')
         xml_root = tree.getroot()
         strip_namespace(xml_root)
         if xml_root.tag != 'definition':
             raise NeXusError(f'The application definition {application} does not contain the correct root tag.')
-        elif xml_root.attrib['name'] != application:
-            raise NeXusError(
-                f'The name stored in the root tag of the application definition does not match the file name')
         xml_dict = xml_to_dict(xml_root.find('group'))
         if xml_root.attrib['extends'] != 'NXobject':
             xml_extended_dict = self.load_application(xml_root.attrib['extends'])
@@ -725,7 +725,7 @@ class ApplicationValidator(Validator):
         self.validate_group(self.xml_dict, root[nxpath])
 
 
-def validate_application(filename, path=None):
+def validate_application(filename, path=None, application=None):
     """
     Validates a NeXus application definition against a given XML schema.
 
@@ -745,13 +745,13 @@ def validate_application(filename, path=None):
         entry = root[nxpath]
         if not isinstance(entry, NXentry) and not isinstance(entry, NXsubentry):
             raise NeXusError(f'Path {nxpath} not a NXentry or NXsubentry group')
-        elif 'definition' in entry:
+        elif application is None and 'definition' in entry:
             application = entry['definition'].nxvalue
-        else:
+        elif application is None:
             raise NeXusError(f'No application definition defined in {nxpath}')
 
-    validator = ApplicationValidator(application)
-    validator.validate(entry)
+        validator = ApplicationValidator(application)
+        validator.validate(entry)
 
 
 def output_base_class(base_class):

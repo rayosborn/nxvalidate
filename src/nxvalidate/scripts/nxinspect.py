@@ -24,10 +24,10 @@ def main():
                         help="name of the NeXus file to be validated")
     parser.add_argument("-p", "--path", nargs = 1,
                         help = "path to group to be validated in the NeXus file")
+    parser.add_argument("-a", "--application", nargs='?', const=True,
+                        help = "validate the NeXus file against its application definition")
     parser.add_argument("-b", "--baseclass", nargs = 1,
                         help = "name of the base class to be listed")
-    parser.add_argument("-a", "--application", action='store_true',
-                        help = "validate the NeXus file against its application definition")
     parser.add_argument("-i", "--info", action='store_true',
                         help = "output info messages in addition to warnings and errors")
     parser.add_argument("-w", "--warning", action='store_true',
@@ -38,8 +38,6 @@ def main():
 
     if args.info or args.baseclass:
         logger.setLevel(logging.INFO)
-    elif args.debug:
-        logger.setLevel(logging.DEBUG)
     elif args.warning:
         logger.setLevel(logging.WARNING)
     elif args.error:
@@ -48,17 +46,22 @@ def main():
         logger.setLevel(logging.WARNING)
 
     if args.baseclass:
-        output_base_class(args.baseclass[0])
+        baseclass = args.baseclass[0]
+        output_base_class(baseclass)
     elif args.filename:
-        if args.application:
-            if args.path:
-                validate_application(args.filename[0], args.path[0])
-            else:
-                validate_application(args.filename[0])
-        elif args.path:
-            validate_file(args.filename[0], args.path[0])
+        filename = args.filename[0]
+        if args.path:
+            path = args.path[0]
         else:
-            validate_file(args.filename[0])
+            path = None
+        if args.application:
+            if args.application is True:
+                application = None
+            else:
+                application = args.application
+            validate_application(filename, path=path, application=application)
+        else:
+            validate_file(filename, path=path)
     else:
         raise NeXusError('A file or base class must be specified')
 
