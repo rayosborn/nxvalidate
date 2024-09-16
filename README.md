@@ -76,12 +76,10 @@ Examples
 
 Prerequisites
 =============
-The only prerequisite required to install the nxvalidate package is the 
-[nexusformat package](https://github.com/nexpy/nexusformat). There are 
-more details of further dependencies in the 
-[NeXpy documentation](http://nexpy.github.io/nexpy).
-
-* nexusformat          https://nexpy.github.io/nexpy
+The only prerequisite required to install the `nxvalidate` package is
+the [nexusformat package](https://github.com/nexpy/nexusformat). There
+are more details of further dependencies in the [NeXpy
+documentation](http://nexpy.github.io/nexpy).
 
 User Support
 ============
