@@ -20,6 +20,13 @@ The source code can be downloaded from the NeXpy Git repository:
     % git clone http://github.com/nexpy/nxvalidate.git
 ```
 
+Prerequisites
+-------------
+The only prerequisite required to install the `nxvalidate` package is
+the [nexusformat package](https://github.com/nexpy/nexusformat). There
+are more details of further dependencies in the [NeXpy
+documentation](http://nexpy.github.io/nexpy).
+
 Usage
 =====
 At the moment, the `nxvalidate` package provides a single command-line script.
@@ -73,13 +80,6 @@ Examples
    ```
    % nxinspect -b <base-class-name>
    ```
-
-Prerequisites
-=============
-The only prerequisite required to install the `nxvalidate` package is
-the [nexusformat package](https://github.com/nexpy/nexusformat). There
-are more details of further dependencies in the [NeXpy
-documentation](http://nexpy.github.io/nexpy).
 
 User Support
 ============
