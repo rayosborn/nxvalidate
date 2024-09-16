@@ -66,8 +66,8 @@ Examples
    The `--info`, `--warning` and `--error` switches control how much 
    information is output. The default is `--warning`.
 2. To check whether the contents of the NeXus file conform to the
-   required contents of the application definition specifed in the file,
-   type:
+   required contents of the application definition specified in the
+   file, type:
    ```
    % nxinspect -f <filename.nxs> -a
    ```
