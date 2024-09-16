@@ -8,16 +8,16 @@ repository](https://github.com/nexpy/nxvalidate).
 
 Installation
 ============
-Released versions of `nxvalidate` can be installed using either
+Released versions of `nxvalidate` can be installed using
 
 ```
-    $ pip install nxvalidate
+    % pip install nxvalidate
 ```
 
 The source code can be downloaded from the NeXpy Git repository:
 
 ```
-    $ git clone http://github.com/nexpy/nxvalidate.git
+    % git clone http://github.com/nexpy/nxvalidate.git
 ```
 
 Usage
@@ -85,11 +85,19 @@ more details of further dependencies in the
 
 User Support
 ============
-Consult the [NeXpy documentation](https://nexpy.github.io/nexpy) for details 
-of both the Python command-line API and how to use the NeXpy GUI. If you have 
-any general questions concerning the use of NeXpy, please address 
-them to the 
-[NeXus Mailing List](http:s//download.nexusformat.org/doc/html/mailinglist.html). 
-If you discover any bugs, please submit a 
-[Github issue](https://github.com/nexpy/nxvalidate/issues), preferably with 
+Information about the Python API for reading and writing NeXus files is
+available as part of the [NeXpy
+documentation](https://nexpy.github.io/nexpy). If you have any general
+questions concerning the use of this package, please address them to the
+[NeXus Mailing
+List](http:s//download.nexusformat.org/doc/html/mailinglist.html). If
+you discover any bugs, please submit a [Github
+issue](https://github.com/nexpy/nxvalidate/issues), preferably with
 relevant tracebacks.
+
+Acknowledgements
+================
+This package was developed jointly by Kaitlyn Marlor, Justin Wozniak,
+and Ray Osborn. The NeXus data format standard has been developed under
+the supervision of the [NeXus International Advisory
+Committee](https://www.nexusformat.org/NIAC.html).
