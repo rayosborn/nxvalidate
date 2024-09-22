@@ -565,7 +565,8 @@ class FieldValidator(Validator):
         if tag:
             self.log(f'This is a valid field in the base class {group.nxclass}')
         else:    
-            if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess']:
+            if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess',
+                                 'NXtransformations']:
                 self.log(
                     f'This is an allowed field in the base class '
                     f'{group.nxclass}')
