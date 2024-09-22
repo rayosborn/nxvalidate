@@ -29,6 +29,8 @@ def main():
         help = "validate the NeXus file against its application definition")
     parser.add_argument("-b", "--baseclass", nargs = 1,
         help = "name of the base class to be listed")
+    parser.add_argument("-d", "--definitions", nargs = 1,
+        help = "path to the directory containing NeXus definitions")
     parser.add_argument("-i", "--info", action='store_true',
         help = "output info messages in addition to warnings and errors")
     parser.add_argument("-w", "--warning", action='store_true',
@@ -48,9 +50,14 @@ def main():
     else:
         logger.setLevel(logging.WARNING)
 
+    if args.definitions:
+        definitions = args.definitions[0]
+    else:
+        definitions = None
+
     if args.baseclass:
         baseclass = args.baseclass[0]
-        inspect_base_class(baseclass)
+        inspect_base_class(baseclass, definitions=definitions)
     elif args.filename:
         filename = args.filename[0]
         if args.path:
@@ -62,9 +69,10 @@ def main():
                 application = None
             else:
                 application = args.application
-            validate_application(filename, path=path, application=application)
+            validate_application(filename, path=path, application=application,
+                                 definitions=definitions)
         else:
-            validate_file(filename, path=path)
+            validate_file(filename, path=path, definitions=definitions)
     else:
         raise NeXusError('A file or base class must be specified')
 

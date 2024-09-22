@@ -44,7 +44,7 @@ logger = get_logger()
 validators = {}
 
 
-def get_validator(nxclass):
+def get_validator(nxclass, definitions=None):
     """
     Retrieves a validator instance for a given NeXus class.
 
@@ -62,67 +62,18 @@ def get_validator(nxclass):
         A validator instance for the specified NeXus class.
     """
     if nxclass not in validators:
-        validators[nxclass] = GroupValidator(nxclass)
+        validators[nxclass] = GroupValidator(nxclass, definitions=definitions)
     return validators[nxclass]
 
 
 class Validator():
     
-    def __init__(self, nxclass=None):
+    def __init__(self):
         """
         Initializes a new Validator instance.
-
-        Parameters
-        ----------
-        nxclass : str, optional
-            The name of the NeXus class to validate (default is None).
-
-        Returns
-        -------
-        None
-            No return value.
         """
-        self.nxclass = nxclass
         self.logged_messages = []
         self.valid_class = True
-        if self.nxclass != 'NXfield':
-            self.root = self.get_root()
-        else:
-            self.root = None
-        self.parent = None
-
-    def get_root(self):
-        """
-        Retrieves the root element of the NeXus class XML file.
-
-        If the NeXus class is specified and the corresponding XML file
-        exists, this method parses the file and returns its root
-        element. Otherwise, it returns None.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        root : ElementTree.Element or None
-            The root element of the NeXus class definition XML file, or
-            None if the class is not specified or the file does not
-            exist.
-        """
-        if self.nxclass:
-            file_path = package_files('nxvalidate.definitions.base_classes'
-                                      ).joinpath(f'{self.nxclass}.nxdl.xml')
-            if file_path.exists():
-                tree = ET.parse(file_path)
-                root = tree.getroot()
-                strip_namespace(root)
-            else:
-                root = None
-                self.valid_class = False
-        else:
-            root = None
-        return root
 
     def get_attributes(self, element):
         """
@@ -204,7 +155,7 @@ class Validator():
 
 class GroupValidator(Validator):
 
-    def __init__(self, nxclass):
+    def __init__(self, nxclass, definitions=None):
         """
         Initialize a GroupValidator instance with the given NeXus class.
 
@@ -213,11 +164,51 @@ class GroupValidator(Validator):
         nxclass : str
             The NeXus class of the group to be validated.
         """
-        super().__init__(nxclass)
+        super().__init__()
+        self.nxclass = nxclass
+        self.definitions = definitions
+        self.root = self.get_root()
         if self.valid_class:
             self.valid_fields = self.get_valid_fields()
             self.valid_groups = self.get_valid_groups()
             self.valid_attributes = self.get_valid_attributes()
+
+    def get_root(self):
+        """
+        Retrieves the root element of the NeXus class XML file.
+
+        If the NeXus class is specified and the corresponding XML file
+        exists, this method parses the file and returns its root
+        element. Otherwise, it returns None.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        root : ElementTree.Element or None
+            The root element of the NeXus class definition XML file, or
+            None if the class is not specified or the file does not
+            exist.
+        """
+        if self.nxclass:
+            if self.definitions:
+                directory = Path(self.definitions)
+            else:
+                directory = package_files('nxvalidate.definitions')
+            file_path = directory.joinpath('base_classes',
+                                           f'{self.nxclass}.nxdl.xml')
+            if file_path.exists():
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                strip_namespace(root)
+            else:
+                root = None
+                self.valid_class = False
+        else:
+            root = None
+        return root
 
     def get_valid_fields(self):
         """
@@ -359,7 +350,7 @@ class FieldValidator(Validator):
         """
         Initializes a FieldValidator instance.
         """
-        super().__init__(nxclass='NXfield')
+        super().__init__()
 
     def check_type(self, field, dtype):
         """
@@ -608,7 +599,7 @@ field_validator = FieldValidator()
 
 class FileValidator(Validator):
 
-    def __init__(self, filename):
+    def __init__(self, filename, definitions=None):
         """
         Initializes a FileValidator instance with a filename.
 
@@ -618,6 +609,7 @@ class FileValidator(Validator):
             The name of the file to be validated.
         """
         self.filename = filename
+        self.definitions = definitions
 
     def walk(self, node, indent=0):
         """
@@ -668,11 +660,12 @@ class FileValidator(Validator):
                 parent = root
             for item, indent in self.walk(parent):
                 if isinstance(item, NXgroup):
-                    validator = get_validator(item.nxclass)
+                    validator = get_validator(item.nxclass,
+                                              definitions=self.definitions)
                     validator.validate(item, indent=indent)
 
 
-def validate_file(filename, path=None):
+def validate_file(filename, path=None, definitions=None):
     """
     Validate a NeXus file by walking through its tree structure.
 
@@ -690,13 +683,13 @@ def validate_file(filename, path=None):
     """
     if not Path(filename).exists():
         raise NeXusError(f'File {filename} does not exist')
-    validator = FileValidator(filename)
+    validator = FileValidator(filename, definitions=definitions)
     validator.validate(path)
 
 
 class ApplicationValidator(Validator):
 
-    def __init__(self, application):
+    def __init__(self, application, definitions=None):
         """
         Initializes an instance of the ApplicationValidator class.
 
@@ -705,6 +698,7 @@ class ApplicationValidator(Validator):
         application : str
             The name of the application to be validated.
         """
+        self.definitions = definitions
         self.xml_dict = self.load_application(application)
         self.logged_messages = []
         self.indent = 0
@@ -727,8 +721,12 @@ class ApplicationValidator(Validator):
         if Path(application).exists():
             app_path = Path(application).resolve()
         else:
-            app_path = package_files('nxvalidate.definitions.applications'
-                                     ).joinpath(f'{application}.nxdl.xml')
+            if self.definitions:
+                directory = Path(self.definitions)
+            else:
+                directory = package_files('nxvalidate.definitions')
+            app_path = directory.joinpath('applications',
+                                          f'{application}.nxdl.xml')
         if app_path.exists():
             tree = ET.parse(app_path)
         else:
@@ -854,7 +852,8 @@ class ApplicationValidator(Validator):
         self.validate_group(self.xml_dict, root[nxpath])
 
 
-def validate_application(filename, path=None, application=None):
+def validate_application(filename, path=None, application=None,
+                         definitions=None):
     """
     Validates a NeXus application definition against a given XML schema.
 
@@ -882,11 +881,11 @@ def validate_application(filename, path=None, application=None):
             raise NeXusError(
                 f'No application definition defined in {nxpath}')
 
-        validator = ApplicationValidator(application)
+        validator = ApplicationValidator(application, definitions=definitions)
         validator.validate(entry)
 
 
-def inspect_base_class(base_class):
+def inspect_base_class(base_class, definitions=None):
     """
     Outputs the base class attributes, groups, and fields.
 
@@ -895,7 +894,7 @@ def inspect_base_class(base_class):
     base_class : str
         The name of the base class to be output.
     """
-    validator = get_validator(base_class)
+    validator = get_validator(base_class, definitions=definitions)
     log(f"Base Class: {base_class}")
     if validator.valid_attributes:
         for attribute in validator.valid_attributes:
