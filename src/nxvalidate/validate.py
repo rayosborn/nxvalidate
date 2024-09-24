@@ -68,12 +68,21 @@ def get_validator(nxclass, definitions=None):
 
 class Validator():
     
-    def __init__(self):
+    def __init__(self, definitions=None):
         """
         Initializes a new Validator instance.
         """
+        if definitions is not None:
+            if isinstance(definitions, str):
+                self.definitions = Path(definitions)
+            else:
+                self.definitions = definitions
+        else:
+            self.definitions = package_files('nxvalidate.definitions')
+        self.baseclass_directory = self.definitions / 'base_classes'
+        self.application_directory = self.definitions / 'applications'
         self.logged_messages = []
-        self.valid_class = True
+        self.indent = 0
 
     def get_attributes(self, element):
         """
@@ -164,9 +173,8 @@ class GroupValidator(Validator):
         nxclass : str
             The NeXus class of the group to be validated.
         """
-        super().__init__()
+        super().__init__(definitions=definitions)
         self.nxclass = nxclass
-        self.definitions = definitions
         self.root = self.get_root()
         if self.valid_class:
             self.valid_fields = self.get_valid_fields()
@@ -193,21 +201,18 @@ class GroupValidator(Validator):
             exist.
         """
         if self.nxclass:
-            if self.definitions:
-                directory = Path(self.definitions)
-            else:
-                directory = package_files('nxvalidate.definitions')
-            file_path = directory.joinpath('base_classes',
-                                           f'{self.nxclass}.nxdl.xml')
+            file_path = self.baseclass_directory / (f'{self.nxclass}.nxdl.xml')
             if file_path.exists():
                 tree = ET.parse(file_path)
                 root = tree.getroot()
                 strip_namespace(root)
+                self.valid_class = True
             else:
                 root = None
                 self.valid_class = False
         else:
             root = None
+            self.valid_class = False
         return root
 
     def get_valid_fields(self):
@@ -609,8 +614,8 @@ class FileValidator(Validator):
         filename : str
             The name of the file to be validated.
         """
+        super().__init__(definitions=definitions)
         self.filename = filename
-        self.definitions = definitions
 
     def walk(self, node, indent=0):
         """
@@ -699,10 +704,8 @@ class ApplicationValidator(Validator):
         application : str
             The name of the application to be validated.
         """
-        self.definitions = definitions
+        super().__init__(definitions=definitions)
         self.xml_dict = self.load_application(application)
-        self.logged_messages = []
-        self.indent = 0
         
     def load_application(self, application):
         """
@@ -722,12 +725,7 @@ class ApplicationValidator(Validator):
         if Path(application).exists():
             app_path = Path(application).resolve()
         else:
-            if self.definitions:
-                directory = Path(self.definitions)
-            else:
-                directory = package_files('nxvalidate.definitions')
-            app_path = directory.joinpath('applications',
-                                          f'{application}.nxdl.xml')
+            app_path = self.application_directory / (f'{application}.nxdl.xml')
         if app_path.exists():
             tree = ET.parse(app_path)
         else:
