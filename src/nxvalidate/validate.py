@@ -302,19 +302,26 @@ class GroupValidator(Validator):
         if parent:
             parent_validator = get_validator(parent.nxclass)
             if group.nxclass not in parent_validator.valid_groups:
-                self.log(
-                    f'{group.nxclass} is an invalid class in {parent.nxclass}',
-                    level='error')
+                if 'ignoreExtraGroups' in parent_validator.root.attrib:
+                    self.log(f'{group.nxclass} is not defined in '
+                             f'{parent.nxclass}. '
+                             'Additional classes are allowed.')
+                else:
+                    self.log(f'{group.nxclass} is an invalid class in '
+                             f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
                 self.log(
-                    f'"@{attribute}" is a valid attribute of the base class"'
-                    f'{group.nxclass}')
+                    f'"@{attribute}" is a valid attribute in {group.nxclass}')
+            elif 'ignoreExtraAttributes' in self.root.attrib:
+                self.log(
+                    f'"@{attribute}" is not defined as an attribute in '
+                    f'{group.nxclass}. Additional attributes are allowed.')
             else:
                 self.log(
-                    f'"@{attribute}" not defined as an attribute'
-                    f' in the base class {group.nxclass}', level='info')
+                    f'"@{attribute}" is not defined as an attribute'
+                    f' in {group.nxclass}', level='warning')
         if group.nxclass == 'NXdata':
             if 'signal' in group.attrs:
                 signal = group.attrs['signal']
@@ -568,17 +575,16 @@ class FieldValidator(Validator):
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
         if tag:
-            self.log(f'This is a valid field in the base class {group.nxclass}')
+            self.log(f'This is a valid field in {group.nxclass}')
         else:    
-            if group.nxclass in ['NXcollection', 'NXdata', 'NXprocess',
-                                 'NXtransformations']:
+            if 'ignoreExtraFields' in self.parent.root.attrib:
                 self.log(
-                    f'This is an allowed field in the base class '
-                    f'{group.nxclass}')
+                    f'This field is not defined in {group.nxclass}. '
+                    f'Additional fields are allowed.')
             else:
                 self.log(
-                    f'This field is not defined in the base class '
-                    f'{group.nxclass}', level='warning')
+                    f'This field is not defined in {group.nxclass}',
+                    level='warning')
         if '@deprecated' in tag:
             self.log(f'This field is now deprecated. {tag["@deprecated"]}',
                      level='warning')
