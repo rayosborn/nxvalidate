@@ -359,7 +359,7 @@ class GroupValidator(Validator):
                 if entry in self.valid_fields:
                     tag = self.valid_fields[entry]
                 else:
-                    tag = {}
+                    tag = None
                 field_validator.validate(tag, item, parent=self, indent=indent)
         self.output_log()
                 
@@ -507,7 +507,7 @@ class FieldValidator(Validator):
         if 'units' in field.attrs:
             if units:
                 self.log(
-                    f'"{field.attrs["units"]}" are specified'
+                    f'"{field.attrs["units"]}" are specified '
                     f'as units of {units}')
             else:
                 self.log(f'"{field.attrs["units"]}" are specified as units')
@@ -557,7 +557,7 @@ class FieldValidator(Validator):
             self.parent.logged_messages.append((message, level, indent))
         self.logged_messages = []
 
-    def validate(self, tag, field, parent=None, indent=1):
+    def validate(self, tag, field, parent=None, indent=1, minOccurs=None):
         """
         Validates a field in a NeXus group.
 
@@ -582,35 +582,39 @@ class FieldValidator(Validator):
         self.indent += 1
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
-        if tag:
-            self.log(f'This is a valid field in {group.nxclass}')
-        else:    
-            if 'ignoreExtraFields' in self.parent.root.attrib:
-                self.log(
-                    f'This field is not defined in {group.nxclass}. '
-                    f'Additional fields are allowed.')
+        if minOccurs is not None:
+            if minOccurs > 0:
+                self.log(f'This is a required field in the NeXus file')
             else:
-                self.log(
-                    f'This field is not defined in {group.nxclass}',
-                    level='warning')
-        if '@deprecated' in tag:
-            self.log(f'This field is now deprecated. {tag["@deprecated"]}',
-                     level='warning')
-        if '@type' in tag:  
-            self.check_type(field, tag['@type'])
-        if 'dimensions' in tag:
-            self.check_dimensions(field, tag['dimensions'])
-        if 'enumeration' in tag:
-            self.check_enumeration(field, tag['enumeration'])
-        if 'attribute' in tag:
-            attributes = tag['attribute'].values()
-        else:
-            attributes = None
-        if '@units' in tag:
-            units = tag['@units']
-        else:
-            units = None
-        self.check_attributes(field, attributes=attributes, units=units)
+                self.log(f'This is an optional field in the NeXus file')
+        elif tag is not None:
+            self.log(f'This is a valid field in {group.nxclass}')
+        if tag is None:
+            if 'ignoreExtraFields' in self.parent.root.attrib:
+                self.log(f'This field is not defined in {group.nxclass}. '
+                         f'Additional fields are allowed.')
+            else:
+                self.log(f'This field is not defined in {group.nxclass}',
+                         level='warning')
+        else:    
+            if '@deprecated' in tag:
+                self.log(f'This field is now deprecated. {tag["@deprecated"]}',
+                         level='warning')
+            if '@type' in tag:  
+                self.check_type(field, tag['@type'])
+            if 'dimensions' in tag:
+                self.check_dimensions(field, tag['dimensions'])
+            if 'enumeration' in tag:
+                self.check_enumeration(field, tag['enumeration'])
+            if 'attribute' in tag:
+                attributes = tag['attribute'].values()
+            else:
+                attributes = None
+            if '@units' in tag:
+                units = tag['@units']
+            else:
+                units = None
+            self.check_attributes(field, attributes=attributes, units=units)
         self.output_log()
 
 
@@ -801,8 +805,7 @@ class ApplicationValidator(Validator):
                             'are required', level='error')
                     elif minOccurs == 0:
                         self.log(
-                            f'This optional group is not in the NeXus file',
-                            level='warning')
+                            f'This optional group is not in the NeXus file')
                     for nxsubgroup in nxgroups:
                         if name:
                             self.validate_group(value[name], nxsubgroup,
@@ -819,17 +822,13 @@ class ApplicationValidator(Validator):
                     else:
                         minOccurs = 1
                     if field in nxgroup.entries:
+                        group_validator = get_validator(
+                            nxgroup.nxclass, definitions=self.definitions)
                         field_validator.validate(
-                            value[field], nxgroup[field], parent=self,
+                            value[field], nxgroup[field],
+                            parent=group_validator, minOccurs=minOccurs,
                             indent=self.indent-1)
-                        self.indent += 1
-                        if minOccurs > 0:
-                            self.log(
-                                f'This is a required field in the NeXus file')
-                        else:
-                            self.log(
-                                f'This is an optional field in the NeXus file')
-                        self.indent -= 1
+                        group_validator.output_log()
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'Field: {field_path}', level='all')
