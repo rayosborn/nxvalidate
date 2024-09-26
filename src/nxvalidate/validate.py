@@ -15,8 +15,8 @@ from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
                     is_valid_complex, is_valid_float, is_valid_int,
                     is_valid_iso8601, is_valid_name, is_valid_number,
-                    is_valid_posint, is_valid_uint, merge_dicts,
-                    package_files, strip_namespace, xml_to_dict)
+                    is_valid_posint, is_valid_uint, merge_dicts, package_files,
+                    readaxes, strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -330,16 +330,24 @@ class GroupValidator(Validator):
                         f'Signal "{signal}" not present in group'
                         f' "{group.nxpath}"', level='error')
             else:
+                signal = None
                 self.log(
                     f'"@signal" not defined in NXdata group "{group.nxpath}"',
                     level='error')
             if 'axes' in group.attrs:
-                axes = group.attrs['axes']
+                axes = readaxes(group.attrs['axes'])
                 for axis in axes:
-                    if axis not in group.entries:
+                    if axis != '.' and axis not in group.entries:
                         self.log(
                             f'Axis {axis}" not present in group '
                             f'"{group.nxpath}"', level='error')
+                if signal in group:
+                    if len(axes) != group[signal].ndim:
+                        self.log(
+                            '"@axes" length does not match the signal rank',
+                            level='error')
+                    else:
+                        self.log('"@axes" has the correct length')
             else:
                 self.log(
                     f'"@axes" not defined in NXdata group "{group.nxpath}"',

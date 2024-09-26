@@ -331,3 +331,26 @@ def merge_dicts(dict1, dict2):
         else:
             dict1[key] = value
     return dict1
+
+def readaxes(axes):
+    """Return a list of axis names stored in the 'axes' attribute.
+
+    If the input argument is a string, the names are assumed to be separated
+    by a delimiter, which can be white space, a comma, or a colon. If it is
+    a list of strings, they are converted to strings.
+
+    Parameters
+    ----------
+    axes : str or list of str
+        Value of 'axes' attribute defining the plotting axes.
+
+    Returns
+    -------
+    list of str
+        Names of the axis fields.
+    """
+    if isinstance(axes, str):
+        return list(re.split(r'[,:; ]',
+                    str(axes).strip('[]()').replace('][', ':')))
+    else:
+        return [str(axis) for axis in axes]
