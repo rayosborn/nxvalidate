@@ -47,6 +47,8 @@ options:
                         name of the base class to be listed
   -a [APPLICATION], --application [APPLICATION]
                         validate the NeXus file against its application definition
+  -d DEFINITIONS, --definitions DEFINITIONS
+                        path to the directory containing NeXus definitions
   -i, --info            output info messages in addition to warnings and errors
   -w, --warning         output info messages in addition to warnings and errors
   -e, --error           output info messages in addition to warnings and errors
@@ -65,18 +67,26 @@ Examples
    ```
    The `--info`, `--warning` and `--error` switches control how much 
    information is output. The default is `--warning`.
-2. To check whether the contents of the NeXus file conform to the
+2. To compare the contents of a NeXus file with the base classes defined
+   in a different directory to the installed package, type:
+   ```
+   % nxinspect -f <filename.nxs> -d /path/to/definitions
+   ```
+   The directory should contain two sub-directories, `applications` and
+   `base_classes` containing the NXDL files needed to validate the
+   specified NeXus file.
+3. To check whether the contents of the NeXus file conform to the
    required contents of the application definition specified in the
    file, type:
    ```
    % nxinspect -f <filename.nxs> -a
    ```
-3. To check whether the contents of the NeXus file conform to the
+4. To check whether the contents of the NeXus file conform to the
    required contents of an application definition file, type:
    ```
    % nxinspect -f <filename.nxs> -a <application.nxdl.xml>
    ```
-4. To print the contents of a base class, type:
+5. To print the contents of a base class, type:
    ```
    % nxinspect -b <base-class-name>
    ```
