@@ -341,7 +341,7 @@ class GroupValidator(Validator):
                         self.log(
                             f'Axis {axis}" not present in group '
                             f'"{group.nxpath}"', level='error')
-                if signal in group:
+                if signal in group and group[signal].exists():
                     if len(axes) != group[signal].ndim:
                         self.log(
                             '"@axes" length does not match the signal rank',
@@ -596,25 +596,27 @@ class FieldValidator(Validator):
             else:
                 self.log(f'This field is not defined in {group.nxclass}',
                          level='warning')
-        else:    
+        else:
             if '@deprecated' in tag:
                 self.log(f'This field is now deprecated. {tag["@deprecated"]}',
                          level='warning')
-            if '@type' in tag:  
-                self.check_type(field, tag['@type'])
-            if 'dimensions' in tag:
-                self.check_dimensions(field, tag['dimensions'])
-            if 'enumeration' in tag:
-                self.check_enumeration(field, tag['enumeration'])
-            if 'attribute' in tag:
-                attributes = tag['attribute'].values()
-            else:
-                attributes = None
-            if '@units' in tag:
-                units = tag['@units']
-            else:
-                units = None
-            self.check_attributes(field, attributes=attributes, units=units)
+            if field.exists():
+                if '@type' in tag:  
+                    self.check_type(field, tag['@type'])
+                if 'dimensions' in tag:
+                    self.check_dimensions(field, tag['dimensions'])
+                if 'enumeration' in tag:
+                    self.check_enumeration(field, tag['enumeration'])
+                if 'attribute' in tag:
+                    attributes = tag['attribute'].values()
+                else:
+                    attributes = None
+                if '@units' in tag:
+                    units = tag['@units']
+                else:
+                    units = None
+                self.check_attributes(field, attributes=attributes,
+                                      units=units)
         self.output_log()
 
 
@@ -654,9 +656,9 @@ class FileValidator(Validator):
         tuple
             A tuple containing the current node and indentation level.
         """
-        if node.nxclass == 'NXfield':
+        if not isinstance(node, NXgroup):
             yield node, indent
-        else:
+        elif node.exists():
             yield node, indent
             for child_node in node.entries.values():
                 yield from self.walk(child_node, indent+1)
