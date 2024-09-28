@@ -121,6 +121,14 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+# MacOS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
 # Environments
 .env
 .venv
