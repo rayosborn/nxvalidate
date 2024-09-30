@@ -138,26 +138,18 @@ class Validator():
         and there are no messages at that level, the function resets the
         log and returns without logging any messages.
         """
-        info = 0
         warning = 0
         error = 0
-        debug = 0
         for item in self.logged_messages:
-            if item[1] == 'info':
-                info += 1
-            elif item[1] == 'warning':
+            if item[1] == 'warning':
                 warning += 1
             elif item[1] == 'error':
                 error += 1
-            elif item[1] == 'debug':
-                debug += 1
         if ((logger.level == logging.WARNING and warning == 0 and error == 0)
                 or (logger.level == logging.ERROR and error == 0)):
             self.logged_messages = []
             return
         for message, level, indent in self.logged_messages:
-            if level == 'all':
-                level = 'error'
             log(message, level=level, indent=indent)
         self.logged_messages = []
 
@@ -188,10 +180,6 @@ class GroupValidator(Validator):
         If the NeXus class is specified and the corresponding XML file
         exists, this method parses the file and returns its root
         element. Otherwise, it returns None.
-
-        Parameters
-        ----------
-        None
 
         Returns
         -------
@@ -540,17 +528,13 @@ class FieldValidator(Validator):
         info = 0
         warning = 0
         error = 0
-        debug = 0
         for item in self.logged_messages:
-            if item[1] == 'info':
-                info += 1
-            elif item[1] == 'warning':
+            if item[1] == 'warning':
                 warning += 1
             elif item[1] == 'error':
                 error += 1
-            elif item[1] == 'debug':
-                debug += 1
-        if logger.level != logging.INFO and warning == 0 and error == 0:
+        if ((logger.level == logging.WARNING and warning == 0 and error == 0)
+                or (logger.level == logging.ERROR and error == 0)):
             self.logged_messages = []
             return
         for message, level, indent in self.logged_messages:
@@ -969,3 +953,5 @@ def log(message, level='info', indent=0, width=100):
         logger.warning(f'{4*indent*" "}{message}')
     elif level == 'error':
         logger.error(f'{4*indent*" "}{message}')
+    elif level == 'all':
+        logger.critical(f'{4*indent*" "}{message}')
