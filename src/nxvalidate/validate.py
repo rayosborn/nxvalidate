@@ -12,11 +12,12 @@ from pathlib import Path
 
 from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 
-from .utils import (is_valid_bool, is_valid_char, is_valid_char_or_number,
-                    is_valid_complex, is_valid_float, is_valid_int,
-                    is_valid_iso8601, is_valid_name, is_valid_number,
-                    is_valid_posint, is_valid_uint, merge_dicts, package_files,
-                    readaxes, strip_namespace, xml_to_dict)
+from .utils import (ColorFormatter, is_valid_bool, is_valid_char,
+                    is_valid_char_or_number, is_valid_complex, is_valid_float,
+                    is_valid_int, is_valid_iso8601, is_valid_name,
+                    is_valid_number, is_valid_posint, is_valid_uint,
+                    merge_dicts, package_files, readaxes, strip_namespace,
+                    xml_to_dict)
 
 
 def get_logger():
@@ -31,10 +32,11 @@ def get_logger():
         A logger instance.
     """
     logger = logging.getLogger("NXValidate")
-    logger.setLevel(logging.DEBUG)
     stream_handler = logging.StreamHandler(stream=sys.stdout)
+    stream_handler.setFormatter(ColorFormatter('%(message)s'))    
     logger.addHandler(stream_handler)
-    return logger 
+    logger.setLevel(logging.WARNING)    
+    return logger
 
 
 logger = get_logger()
@@ -525,7 +527,6 @@ class FieldValidator(Validator):
         function resets the log and returns without logging any
         messages.
         """
-        info = 0
         warning = 0
         error = 0
         for item in self.logged_messages:
