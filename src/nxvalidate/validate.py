@@ -169,13 +169,13 @@ class GroupValidator(Validator):
         """
         super().__init__(definitions=definitions)
         self.nxclass = nxclass
-        self.root = self.get_root()
+        self.xml_dict = self.get_xml_dict()
         if self.valid_class:
             self.valid_fields = self.get_valid_fields()
             self.valid_groups = self.get_valid_groups()
             self.valid_attributes = self.get_valid_attributes()
 
-    def get_root(self):
+    def get_xml_dict(self):
         """
         Retrieves the root element of the NeXus class XML file.
 
@@ -196,14 +196,32 @@ class GroupValidator(Validator):
                 tree = ET.parse(file_path)
                 root = tree.getroot()
                 strip_namespace(root)
+                xml_dict = xml_to_dict(root)
                 self.valid_class = True
+                if '@ignoreExtraAttributes' in xml_dict:
+                    self.ignoreExtraAttributes = True
+                else:
+                    self.ignoreExtraAttributes = False
+                if '@ignoreExtraFields' in xml_dict:
+                    self.ignoreExtraFields = True
+                else:
+                    self.ignoreExtraFields = False
+                if '@ignoreExtraGroups' in xml_dict:
+                    self.ignoreExtraGroups = True
+                else:
+                    self.ignoreExtraGroups = False
+                if '@extends' in xml_dict:
+                    parent_validator = get_validator(
+                        xml_dict['@extends'], definitions=self.definitions)
+                    xml_extended_dict = parent_validator.get_xml_dict()
+                    xml_dict = merge_dicts(xml_dict, xml_extended_dict)
             else:
-                root = None
+                xml_dict = None
                 self.valid_class = False
         else:
-            root = None
+            xml_dict = None
             self.valid_class = False
-        return root
+        return xml_dict
 
     def get_valid_fields(self):
         """
@@ -217,11 +235,18 @@ class GroupValidator(Validator):
             field.
         """
         valid_fields = {}
-        if self.root is not None:
-            for field in self.root.findall('field'):
-                name = field.get('name')
-                if name:
-                    valid_fields[name] = self.get_attributes(field)
+        if self.xml_dict is not None:
+            if 'field' not in self.xml_dict:
+                return valid_fields
+            fields = self.xml_dict['field']
+            for field in fields:
+                valid_fields[field] = fields[field]
+                if ('@nameType' in fields[field] and
+                        fields[field]['@nameType'] == 'any'):
+                    if self.ignoreExtraFields is True:
+                        self.ignoreExtraFields = 1
+                    else:
+                        self.ignoreExtraFields += 1
         return valid_fields
     
     def get_valid_groups(self):
@@ -236,14 +261,16 @@ class GroupValidator(Validator):
             group.
         """
         valid_groups = {}
-        if self.root is not None:
-            for group in self.root.findall('group'):
-                group_name = group.get('name')
-                group_type = group.get('type')
-                if group_name:
-                    valid_groups[group_name] = self.get_attributes(group)
-                elif group_type:
-                    valid_groups[group_type] = self.get_attributes(group)
+        if self.xml_dict is not None:
+            if 'group' not in self.xml_dict:
+                return valid_groups
+            groups = self.xml_dict['group']
+            for group in groups:
+                group_type = groups[group].get('@type')
+                if group_type:
+                    valid_groups[group_type] = groups[group]
+                else:
+                    valid_groups[group] = groups[group]
         return valid_groups
     
     def get_valid_attributes(self):
@@ -258,11 +285,12 @@ class GroupValidator(Validator):
             values.
         """
         valid_attrs = {}
-        if self.root is not None:
-            for attr in self.root.findall('attribute'):
-                name = attr.get('name')
-                if name:
-                    valid_attrs[name] = self.get_attributes(attr)
+        if self.xml_dict is not None:
+            if 'attribute' not in self.xml_dict:
+                return valid_attrs
+            attrs = self.xml_dict['attribute']
+            for attr in attrs:
+                valid_attrs[attr] = attrs[attr]
         return valid_attrs
     
     def validate(self, group, indent=0): 
@@ -292,7 +320,7 @@ class GroupValidator(Validator):
         if parent:
             parent_validator = get_validator(parent.nxclass)
             if group.nxclass not in parent_validator.valid_groups:
-                if 'ignoreExtraGroups' in parent_validator.root.attrib:
+                if parent_validator.ignoreExtraGroups:
                     self.log(f'{group.nxclass} is not defined in '
                              f'{parent.nxclass}. '
                              'Additional classes are allowed.')
@@ -304,7 +332,7 @@ class GroupValidator(Validator):
             if attribute in self.valid_attributes:
                 self.log(
                     f'"@{attribute}" is a valid attribute in {group.nxclass}')
-            elif 'ignoreExtraAttributes' in self.root.attrib:
+            elif self.ignoreExtraAttributes:
                 self.log(
                     f'"@{attribute}" is not defined as an attribute in '
                     f'{group.nxclass}. Additional attributes are allowed.')
@@ -494,16 +522,16 @@ class FieldValidator(Validator):
         elif 'axis' in field.attrs:
             self.log(f'Using "axis" as a field attribute is no longer valid. '
                      'Use the group attribute "axes"', level='error')
-        if 'units' in field.attrs:
+        if '@units' in field.attrs:
             if units:
                 self.log(
-                    f'"{field.attrs["units"]}" are specified '
+                    f'"{field.attrs["@units"]}" are specified '
                     f'as units of {units}')
             else:
-                self.log(f'"{field.attrs["units"]}" are specified as units')
+                self.log(f'"{field.attrs["@units"]}" are specified as units')
         elif units:
             self.log(f'Units of {units} not specified', level='warning')
-        checked_attributes = ['axis', 'signal', 'units']
+        checked_attributes = ['@axis', '@signal', '@units']
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
@@ -575,7 +603,7 @@ class FieldValidator(Validator):
         elif tag is not None:
             self.log(f'This is a valid field in {group.nxclass}')
         if tag is None:
-            if 'ignoreExtraFields' in self.parent.root.attrib:
+            if self.parent.ignoreExtraFields:
                 self.log(f'This field is not defined in {group.nxclass}. '
                          f'Additional fields are allowed.')
             else:
@@ -593,7 +621,7 @@ class FieldValidator(Validator):
                 if 'enumeration' in tag:
                     self.check_enumeration(field, tag['enumeration'])
                 if 'attribute' in tag:
-                    attributes = tag['attribute'].values()
+                    attributes = tag['attribute']
                 else:
                     attributes = None
                 if '@units' in tag:
