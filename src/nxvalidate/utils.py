@@ -5,6 +5,7 @@
 #
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
+import logging
 import re
 import sys
 
@@ -354,3 +355,25 @@ def readaxes(axes):
                     str(axes).strip('[]()').replace('][', ':')))
     else:
         return [str(axis) for axis in axes]
+
+class ColorFormatter(logging.Formatter):
+    black = "\x1b[30m"
+    orange = "\x1b[1m\x1b[38;2;255;128;0m"
+    red = "\x1b[1;31m\x1b[4:0m"
+    reset = "\x1b[0m"
+
+    format_string = "%(message)s"
+    clear = "\x1b[0m"
+
+    FORMATS = {
+        logging.INFO: black,
+        logging.WARNING: orange,
+        logging.ERROR: red,
+        logging.CRITICAL: black
+    }
+    def format(self, record):
+        level = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(self.format_string)
+        formatted_message = formatter.format(record)
+        return re.sub(r'(\S+)', f'{self.clear}{level}\\1\x1b[24m{self.reset}',
+                      formatted_message)
