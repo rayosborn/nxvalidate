@@ -243,7 +243,7 @@ class GroupValidator(Validator):
                 valid_fields[field] = fields[field]
                 if ('@nameType' in fields[field] and
                         fields[field]['@nameType'] == 'any'):
-                    if self.ignoreExtraFields is True:
+                    if self.ignoreExtraFields is False:
                         self.ignoreExtraFields = 1
                     else:
                         self.ignoreExtraFields += 1
@@ -266,11 +266,7 @@ class GroupValidator(Validator):
                 return valid_groups
             groups = self.xml_dict['group']
             for group in groups:
-                group_type = groups[group].get('@type')
-                if group_type:
-                    valid_groups[group_type] = groups[group]
-                else:
-                    valid_groups[group] = groups[group]
+                valid_groups[group] = groups[group]
         return valid_groups
     
     def get_valid_attributes(self):
@@ -319,7 +315,15 @@ class GroupValidator(Validator):
         parent = group.nxgroup
         if parent:
             parent_validator = get_validator(parent.nxclass)
-            if group.nxclass not in parent_validator.valid_groups:
+            if group.nxname in parent_validator.valid_groups:
+                cls = parent_validator.valid_groups[group.nxname]['@type']
+                if group.nxclass != cls:
+                    self.log(f'{group.nxname} should have a class of '
+                             f'{cls}, not {group.nxclass}',
+                             level='error')
+                else:
+                    self.log(f'This is a valid group in {parent.nxclass}')
+            elif group.nxclass not in parent_validator.valid_groups:
                 if parent_validator.ignoreExtraGroups:
                     self.log(f'{group.nxclass} is not defined in '
                              f'{parent.nxclass}. '
