@@ -314,7 +314,8 @@ class GroupValidator(Validator):
             return
         parent = group.nxgroup
         if parent:
-            parent_validator = get_validator(parent.nxclass)
+            parent_validator = get_validator(parent.nxclass,
+                                             definitions=self.definitions)
             if group.nxname in parent_validator.valid_groups:
                 cls = parent_validator.valid_groups[group.nxname]['@type']
                 if group.nxclass != cls:
