@@ -6,6 +6,7 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import os
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -76,15 +77,29 @@ class Validator():
         """
         if definitions is not None:
             if isinstance(definitions, str):
-                self.definitions = Path(definitions)
+                self.definitions = Path(definitions).resolve()
+            elif isinstance(definitions, Path):
+                self.definitions = definitions.resolve()
             else:
-                self.definitions = definitions
+                self.definitions = definitions.joinpath('')
         else:
-            self.definitions = package_files('nxvalidate.definitions')
-        self.baseclass_directory = self.definitions / 'base_classes'
-        self.application_directory = self.definitions / 'applications'
+            self.definitions = package_files(
+                'nxvalidate.definitions').joinpath('')
+        self.baseclasses = self.definitions / 'base_classes'
+        if not self.baseclasses.exists():
+            raise NeXusError(f'"{self.baseclasses}" does not exist')
+        self.applications = self.definitions / 'applications'
+        if not self.applications.exists():
+            self.applications = None
+        self.contributions = self.definitions / 'contributed_definitions'
+        if not self.contributions.exists():
+            self.contributions = None
+        self.filepath = None
         self.logged_messages = []
         self.indent = 0
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.filepath.stem})'
 
     def get_attributes(self, element):
         """
@@ -191,33 +206,36 @@ class GroupValidator(Validator):
             exist.
         """
         if self.nxclass:
-            filepath = self.baseclass_directory / (f'{self.nxclass}.nxdl.xml')
-            if filepath.exists():
-                tree = ET.parse(filepath)
-                root = tree.getroot()
-                strip_namespace(root)
-                xml_dict = xml_to_dict(root)
-                self.valid_class = True
-                if '@ignoreExtraAttributes' in xml_dict:
-                    self.ignoreExtraAttributes = True
-                else:
-                    self.ignoreExtraAttributes = False
-                if '@ignoreExtraFields' in xml_dict:
-                    self.ignoreExtraFields = True
-                else:
-                    self.ignoreExtraFields = False
-                if '@ignoreExtraGroups' in xml_dict:
-                    self.ignoreExtraGroups = True
-                else:
-                    self.ignoreExtraGroups = False
-                if '@extends' in xml_dict:
-                    parent_validator = get_validator(
-                        xml_dict['@extends'], definitions=self.definitions)
-                    xml_extended_dict = parent_validator.get_xml_dict()
-                    xml_dict = merge_dicts(xml_dict, xml_extended_dict)
+            class_path = self.baseclasses / (f'{self.nxclass}.nxdl.xml')
+            if not class_path.exists() and self.contributions is not None:
+                class_path = self.contributions / (f'{self.nxclass}.nxdl.xml')
+        else:
+            class_path = None 
+
+        if class_path is not None and class_path.exists():
+            self.filepath = class_path.resolve()
+            tree = ET.parse(class_path)
+            root = tree.getroot()
+            strip_namespace(root)
+            xml_dict = xml_to_dict(root)
+            self.valid_class = True
+            if '@ignoreExtraAttributes' in xml_dict:
+                self.ignoreExtraAttributes = True
             else:
-                xml_dict = None
-                self.valid_class = False
+                self.ignoreExtraAttributes = False
+            if '@ignoreExtraFields' in xml_dict:
+                self.ignoreExtraFields = True
+            else:
+                self.ignoreExtraFields = False
+            if '@ignoreExtraGroups' in xml_dict:
+                self.ignoreExtraGroups = True
+            else:
+                self.ignoreExtraGroups = False
+            if '@extends' in xml_dict:
+                parent_validator = get_validator(
+                    xml_dict['@extends'], definitions=self.definitions)
+                xml_extended_dict = parent_validator.get_xml_dict()
+                xml_dict = merge_dicts(xml_dict, xml_extended_dict)
         else:
             xml_dict = None
             self.valid_class = False
@@ -314,7 +332,8 @@ class GroupValidator(Validator):
             return
         parent = group.nxgroup
         if parent:
-            parent_validator = get_validator(parent.nxclass)
+            parent_validator = get_validator(parent.nxclass,
+                                             definitions=self.definitions)
             if group.nxname in parent_validator.valid_groups:
                 cls = parent_validator.valid_groups[group.nxname]['@type']
                 if group.nxclass != cls:
@@ -652,7 +671,7 @@ class FileValidator(Validator):
             The name of the file to be validated.
         """
         super().__init__(definitions=definitions)
-        self.filename = filename
+        self.filepath = Path(filename).resolve()
 
     def walk(self, node, indent=0):
         """
@@ -696,7 +715,7 @@ class FileValidator(Validator):
         -------
         None
         """
-        with nxopen(self.filename) as root:
+        with nxopen(self.filepath) as root:
             if path:
                 parent = root[path]
             else:
@@ -727,6 +746,11 @@ def validate_file(filename, path=None, definitions=None):
     if not Path(filename).exists():
         raise NeXusError(f'File {filename} does not exist')
     validator = FileValidator(filename, definitions=definitions)
+
+    log("\nNXValidate\n----------", level='all')
+    log(f"Validation of {Path(filename).resolve()}", level='all')
+    log(f"Definitions: {validator.definitions}\n", level='all')
+
     validator.validate(path)
 
 
@@ -761,9 +785,15 @@ class ApplicationValidator(Validator):
         """
         if Path(application).exists():
             app_path = Path(application).resolve()
+        elif self.applications is not None:
+            app_path = self.applications / (f'{application}.nxdl.xml')
+            if not app_path.exists() and self.contributions is not None:
+                app_path = self.contributions / (f'{application}.nxdl.xml') 
+        elif self.contributions is not None:
+            app_path = self.contributions / (f'{application}.nxdl.xml')
         else:
-            app_path = self.application_directory / (f'{application}.nxdl.xml')
-        if app_path.exists():
+            app_path = None
+        if app_path is not None and app_path.exists():
             tree = ET.parse(app_path)
         else:
             raise NeXusError(
@@ -779,6 +809,7 @@ class ApplicationValidator(Validator):
             xml_extended_dict = self.load_application(
                 xml_root.attrib['extends'])
             xml_dict = merge_dicts(xml_extended_dict, xml_dict)
+        self.filepath = app_path.resolve()
         return xml_dict
 
     def validate_group(self, xml_dict, nxgroup, level=0):
@@ -896,6 +927,7 @@ def validate_application(filename, path=None, application=None,
         The path to the NeXus entry to be validated. If not provided,
         the first NXentry group will be used.
     """
+
     with nxopen(filename) as root:
         if path is None:
             nxpath = root.NXentry[0].nxpath
@@ -913,6 +945,12 @@ def validate_application(filename, path=None, application=None,
                 f'No application definition defined in {nxpath}')
 
         validator = ApplicationValidator(application, definitions=definitions)
+
+        log("\nNXValidate\n----------", level='all')
+        log(f"Validation of {Path(filename).resolve()}", level='all')
+        log(f"Application Definition: {application}", level='all')
+        log(f"NXDL File: {validator.filepath}\n", level='all')
+
         validator.validate(entry)
 
 
@@ -926,13 +964,17 @@ def inspect_base_class(base_class, definitions=None):
         The name of the base class to be output.
     """
     validator = get_validator(base_class, definitions=definitions)
-    log(f"Base Class: {base_class}")
+
+    log("\nNXValidate\n----------")
+    log(f"Valid components of the {base_class} base class")
+    log(f"NXDL File: {validator.filepath}\n")
+
     if validator.valid_attributes:
-        log('Allowed Attributes', indent=1)
+        log('Allowed Attributes')
         for attribute in validator.valid_attributes:
-            log(f"@{attribute}", indent=2)
+            log(f"@{attribute}", indent=1)
     if validator.valid_groups:
-        log('Allowed Groups', indent=1)
+        log('Allowed Groups')
         for group in validator.valid_groups:
             items = {k: v for k, v in validator.valid_groups[group].items()
                      if v != group}
@@ -941,30 +983,30 @@ def inspect_base_class(base_class, definitions=None):
                 group = validator.valid_groups[group]['@type']
                 attrs = {k: v for k, v in items.items() if v != group
                          and k.startswith('@')}
-                log(f"{name}[{group}]: {attrs}", indent=2)
+                log(f"{name}[{group}]: {attrs}", indent=1)
                 tags = {k: v for k, v in items.items()
                         if not k.startswith('@')}
                 if tags:
-                    log(f"{tags}", indent=3)
+                    log(f"{tags}", indent=2)
             else:
-                log(f"{group}: {items}", indent=2)
+                log(f"{group}: {items}", indent=1)
                 tags = {k: v for k, v in items.items()
                         if not k.startswith('@')}
                 for tag in tags:
-                    log(f"{tag}: {tags[tag]}", indent=3)
+                    log(f"{tag}: {tags[tag]}", indent=2)
     if validator.valid_fields:
-        log('Allowed Fields', indent=1)              
+        log('Allowed Fields')              
         for field in validator.valid_fields:
             items = {k: v for k, v in validator.valid_fields[field].items()
                      if v != field}
             attrs = {k: v for k, v in items.items() if k.startswith('@')}
-            log(f"{field}: {attrs}", indent=2)
+            log(f"{field}: {attrs}", indent=1)
             tags = {k: v for k, v in items.items() if not k.startswith('@')}
             for tag in tags:
-                log(f"{tag}: {tags[tag]}", indent=3)
+                log(f"{tag}: {tags[tag]}", indent=2)
 
 
-def log(message, level='info', indent=0, width=100):
+def log(message, level='info', indent=0, width=None):
     """
     Logs a message at a specified level with optional indentation.
 
@@ -977,8 +1019,13 @@ def log(message, level='info', indent=0, width=100):
     indent : int, optional
         The number of spaces to indent the log message (default is 0).
     """
+    if width is None:
+        width = os.get_terminal_size().columns
     if len(message) + 4*indent > width:
-        message = message[:width - 4*indent - 3] + '...'
+        if message.endswith('\n'):
+            message = message[:width - 4*indent - 3] + '...' + '\n'
+        else:
+            message = message[:width - 4*indent - 3] + '...'
     if level == 'info':
         logger.info(f'{4*indent*" "}{message}')
     elif level == 'debug':
