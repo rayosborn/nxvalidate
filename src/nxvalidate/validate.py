@@ -76,11 +76,14 @@ class Validator():
         """
         if definitions is not None:
             if isinstance(definitions, str):
-                self.definitions = Path(definitions)
+                self.definitions = Path(definitions).resolve()
+            elif isinstance(definitions, Path):
+                self.definitions = definitions.resolve()
             else:
-                self.definitions = definitions
+                self.definitions = definitions.joinpath('')
         else:
-            self.definitions = package_files('nxvalidate.definitions')
+            self.definitions = package_files(
+                'nxvalidate.definitions').joinpath('')
         self.baseclasses = self.definitions / 'base_classes'
         if not self.baseclasses.exists():
             raise NeXusError(f'"{self.baseclasses}" does not exist')
@@ -90,8 +93,12 @@ class Validator():
         self.contributions = self.definitions / 'contributed_definitions'
         if not self.contributions.exists():
             self.contributions = None
+        self.filepath = None
         self.logged_messages = []
         self.indent = 0
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self.filepath.stem})'
 
     def get_attributes(self, element):
         """
@@ -205,6 +212,7 @@ class GroupValidator(Validator):
             class_path = None 
 
         if class_path is not None and class_path.exists():
+            self.filepath = class_path.resolve()
             tree = ET.parse(class_path)
             root = tree.getroot()
             strip_namespace(root)
@@ -662,7 +670,7 @@ class FileValidator(Validator):
             The name of the file to be validated.
         """
         super().__init__(definitions=definitions)
-        self.filename = filename
+        self.filepath = Path(filename).resolve()
 
     def walk(self, node, indent=0):
         """
@@ -706,7 +714,7 @@ class FileValidator(Validator):
         -------
         None
         """
-        with nxopen(self.filename) as root:
+        with nxopen(self.filepath) as root:
             if path:
                 parent = root[path]
             else:
@@ -795,6 +803,7 @@ class ApplicationValidator(Validator):
             xml_extended_dict = self.load_application(
                 xml_root.attrib['extends'])
             xml_dict = merge_dicts(xml_extended_dict, xml_dict)
+        self.filepath = app_path.resolve()
         return xml_dict
 
     def validate_group(self, xml_dict, nxgroup, level=0):
