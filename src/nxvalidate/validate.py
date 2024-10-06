@@ -924,8 +924,9 @@ def inspect_base_class(base_class, definitions=None):
     validator = get_validator(base_class, definitions=definitions)
     log(f"Base Class: {base_class}")
     if validator.valid_attributes:
+        log('Allowed Attributes', indent=1)
         for attribute in validator.valid_attributes:
-            log(f"@{attribute}", indent=1)
+            log(f"@{attribute}", indent=2)
     if validator.valid_groups:
         log('Allowed Groups', indent=1)
         for group in validator.valid_groups:
@@ -948,7 +949,7 @@ def inspect_base_class(base_class, definitions=None):
                 for tag in tags:
                     log(f"{tag}: {tags[tag]}", indent=3)
     if validator.valid_fields:
-        log('Defined Fields', indent=1)              
+        log('Allowed Fields', indent=1)              
         for field in validator.valid_fields:
             items = {k: v for k, v in validator.valid_fields[field].items()
                      if v != field}
