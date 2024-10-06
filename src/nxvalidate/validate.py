@@ -973,12 +973,13 @@ def inspect_base_class(base_class, definitions=None):
     validator = get_validator(base_class, definitions=definitions)
 
     log("\nNXValidate\n----------")
-    log(f"Valid components of the {base_class} base class")
     if validator.filepath is not None:
+        log(f"Valid components of the {base_class} base class")
         log(f"NXDL File: {validator.filepath}\n")
     else:
-        raise NeXusError(f'NXDL file for "{base_class}" does not exist')
-
+        log(f'NXDL file for "{base_class}" does not exist')
+        log(f"Definitions: {validator.definitions}\n")
+        return
 
     if validator.valid_attributes:
         log('Allowed Attributes')
