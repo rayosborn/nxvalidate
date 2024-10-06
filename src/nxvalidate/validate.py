@@ -266,11 +266,7 @@ class GroupValidator(Validator):
                 return valid_groups
             groups = self.xml_dict['group']
             for group in groups:
-                group_type = groups[group].get('@type')
-                if group_type:
-                    valid_groups[group_type] = groups[group]
-                else:
-                    valid_groups[group] = groups[group]
+                valid_groups[group] = groups[group]
         return valid_groups
     
     def get_valid_attributes(self):
