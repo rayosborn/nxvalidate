@@ -191,9 +191,9 @@ class GroupValidator(Validator):
             exist.
         """
         if self.nxclass:
-            file_path = self.baseclass_directory / (f'{self.nxclass}.nxdl.xml')
-            if file_path.exists():
-                tree = ET.parse(file_path)
+            filepath = self.baseclass_directory / (f'{self.nxclass}.nxdl.xml')
+            if filepath.exists():
+                tree = ET.parse(filepath)
                 root = tree.getroot()
                 strip_namespace(root)
                 xml_dict = xml_to_dict(root)
@@ -522,16 +522,16 @@ class FieldValidator(Validator):
         elif 'axis' in field.attrs:
             self.log(f'Using "axis" as a field attribute is no longer valid. '
                      'Use the group attribute "axes"', level='error')
-        if '@units' in field.attrs:
+        if 'units' in field.attrs:
             if units:
                 self.log(
-                    f'"{field.attrs["@units"]}" are specified '
+                    f'"{field.attrs["units"]}" are specified '
                     f'as units of {units}')
             else:
-                self.log(f'"{field.attrs["@units"]}" are specified as units')
+                self.log(f'"{field.attrs["units"]}" are specified as units')
         elif units:
             self.log(f'Units of {units} not specified', level='warning')
-        checked_attributes = ['@axis', '@signal', '@units']
+        checked_attributes = ['axis', 'signal', 'units']
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
