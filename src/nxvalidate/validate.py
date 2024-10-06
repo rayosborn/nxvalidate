@@ -6,6 +6,7 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import os
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -745,6 +746,11 @@ def validate_file(filename, path=None, definitions=None):
     if not Path(filename).exists():
         raise NeXusError(f'File {filename} does not exist')
     validator = FileValidator(filename, definitions=definitions)
+
+    log("\nNXValidate\n----------", level='all')
+    log(f"Validation of {Path(filename).resolve()}", level='all')
+    log(f"Definitions: {validator.definitions}\n", level='all')
+
     validator.validate(path)
 
 
@@ -921,6 +927,7 @@ def validate_application(filename, path=None, application=None,
         The path to the NeXus entry to be validated. If not provided,
         the first NXentry group will be used.
     """
+
     with nxopen(filename) as root:
         if path is None:
             nxpath = root.NXentry[0].nxpath
@@ -938,6 +945,12 @@ def validate_application(filename, path=None, application=None,
                 f'No application definition defined in {nxpath}')
 
         validator = ApplicationValidator(application, definitions=definitions)
+
+        log("\nNXValidate\n----------", level='all')
+        log(f"Validation of {Path(filename).resolve()}", level='all')
+        log(f"Application Definition: {application}", level='all')
+        log(f"NXDL File: {validator.filepath}\n", level='all')
+
         validator.validate(entry)
 
 
@@ -951,13 +964,17 @@ def inspect_base_class(base_class, definitions=None):
         The name of the base class to be output.
     """
     validator = get_validator(base_class, definitions=definitions)
-    log(f"Base Class: {base_class}")
+
+    log("\nNXValidate\n----------")
+    log(f"Valid components of the {base_class} base class")
+    log(f"NXDL File: {validator.filepath}\n")
+
     if validator.valid_attributes:
-        log('Allowed Attributes', indent=1)
+        log('Allowed Attributes')
         for attribute in validator.valid_attributes:
-            log(f"@{attribute}", indent=2)
+            log(f"@{attribute}", indent=1)
     if validator.valid_groups:
-        log('Allowed Groups', indent=1)
+        log('Allowed Groups')
         for group in validator.valid_groups:
             items = {k: v for k, v in validator.valid_groups[group].items()
                      if v != group}
@@ -966,27 +983,27 @@ def inspect_base_class(base_class, definitions=None):
                 group = validator.valid_groups[group]['@type']
                 attrs = {k: v for k, v in items.items() if v != group
                          and k.startswith('@')}
-                log(f"{name}[{group}]: {attrs}", indent=2)
+                log(f"{name}[{group}]: {attrs}", indent=1)
                 tags = {k: v for k, v in items.items()
                         if not k.startswith('@')}
                 if tags:
-                    log(f"{tags}", indent=3)
+                    log(f"{tags}", indent=2)
             else:
-                log(f"{group}: {items}", indent=2)
+                log(f"{group}: {items}", indent=1)
                 tags = {k: v for k, v in items.items()
                         if not k.startswith('@')}
                 for tag in tags:
-                    log(f"{tag}: {tags[tag]}", indent=3)
+                    log(f"{tag}: {tags[tag]}", indent=2)
     if validator.valid_fields:
-        log('Allowed Fields', indent=1)              
+        log('Allowed Fields')              
         for field in validator.valid_fields:
             items = {k: v for k, v in validator.valid_fields[field].items()
                      if v != field}
             attrs = {k: v for k, v in items.items() if k.startswith('@')}
-            log(f"{field}: {attrs}", indent=2)
+            log(f"{field}: {attrs}", indent=1)
             tags = {k: v for k, v in items.items() if not k.startswith('@')}
             for tag in tags:
-                log(f"{tag}: {tags[tag]}", indent=3)
+                log(f"{tag}: {tags[tag]}", indent=2)
 
 
 def log(message, level='info', indent=0, width=100):
