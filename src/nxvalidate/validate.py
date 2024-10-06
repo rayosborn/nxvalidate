@@ -65,7 +65,9 @@ def get_validator(nxclass, definitions=None):
         A validator instance for the specified NeXus class.
     """
     if nxclass not in validators:
-        validators[nxclass] = GroupValidator(nxclass, definitions=definitions)
+        validator = GroupValidator(nxclass, definitions=definitions)
+        nxclass = validator.nxclass
+        validators[nxclass] = validator
     return validators[nxclass]
 
 
@@ -205,12 +207,17 @@ class GroupValidator(Validator):
             None if the class is not specified or the file does not
             exist.
         """
+        class_path = None
         if self.nxclass:
-            class_path = self.baseclasses / (f'{self.nxclass}.nxdl.xml')
-            if not class_path.exists() and self.contributions is not None:
-                class_path = self.contributions / (f'{self.nxclass}.nxdl.xml')
-        else:
-            class_path = None 
+            if Path(self.nxclass).exists():
+                class_path = Path(self.nxclass)
+                self.nxclass = Path(self.nxclass).stem.replace('.nxdl', '')
+            else:
+                class_path = self.baseclasses / (f'{self.nxclass}.nxdl.xml')
+                if not class_path.exists():
+                    if self.contributions is not None:
+                        class_path = (
+                            self.contributions / (f'{self.nxclass}.nxdl.xml'))
 
         if class_path is not None and class_path.exists():
             self.filepath = class_path.resolve()
@@ -966,8 +973,13 @@ def inspect_base_class(base_class, definitions=None):
     validator = get_validator(base_class, definitions=definitions)
 
     log("\nNXValidate\n----------")
-    log(f"Valid components of the {base_class} base class")
-    log(f"NXDL File: {validator.filepath}\n")
+    if validator.filepath is not None:
+        log(f"Valid components of the {base_class} base class")
+        log(f"NXDL File: {validator.filepath}\n")
+    else:
+        log(f'NXDL file for "{base_class}" does not exist')
+        log(f"Definitions: {validator.definitions}\n")
+        return
 
     if validator.valid_attributes:
         log('Allowed Attributes')
