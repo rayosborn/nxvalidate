@@ -81,8 +81,15 @@ class Validator():
                 self.definitions = definitions
         else:
             self.definitions = package_files('nxvalidate.definitions')
-        self.baseclass_directory = self.definitions / 'base_classes'
-        self.application_directory = self.definitions / 'applications'
+        self.baseclasses = self.definitions / 'base_classes'
+        if not self.baseclasses.exists():
+            raise NeXusError(f'"{self.baseclasses}" does not exist')
+        self.applications = self.definitions / 'applications'
+        if not self.applications.exists():
+            self.applications = None
+        self.contributions = self.definitions / 'contributed_definitions'
+        if not self.contributions.exists():
+            self.contributions = None
         self.logged_messages = []
         self.indent = 0
 
@@ -191,33 +198,35 @@ class GroupValidator(Validator):
             exist.
         """
         if self.nxclass:
-            filepath = self.baseclass_directory / (f'{self.nxclass}.nxdl.xml')
-            if filepath.exists():
-                tree = ET.parse(filepath)
-                root = tree.getroot()
-                strip_namespace(root)
-                xml_dict = xml_to_dict(root)
-                self.valid_class = True
-                if '@ignoreExtraAttributes' in xml_dict:
-                    self.ignoreExtraAttributes = True
-                else:
-                    self.ignoreExtraAttributes = False
-                if '@ignoreExtraFields' in xml_dict:
-                    self.ignoreExtraFields = True
-                else:
-                    self.ignoreExtraFields = False
-                if '@ignoreExtraGroups' in xml_dict:
-                    self.ignoreExtraGroups = True
-                else:
-                    self.ignoreExtraGroups = False
-                if '@extends' in xml_dict:
-                    parent_validator = get_validator(
-                        xml_dict['@extends'], definitions=self.definitions)
-                    xml_extended_dict = parent_validator.get_xml_dict()
-                    xml_dict = merge_dicts(xml_dict, xml_extended_dict)
+            class_path = self.baseclasses / (f'{self.nxclass}.nxdl.xml')
+            if not class_path.exists() and self.contributions is not None:
+                class_path = self.contributions / (f'{self.nxclass}.nxdl.xml')
+        else:
+            class_path = None 
+
+        if class_path is not None and class_path.exists():
+            tree = ET.parse(class_path)
+            root = tree.getroot()
+            strip_namespace(root)
+            xml_dict = xml_to_dict(root)
+            self.valid_class = True
+            if '@ignoreExtraAttributes' in xml_dict:
+                self.ignoreExtraAttributes = True
             else:
-                xml_dict = None
-                self.valid_class = False
+                self.ignoreExtraAttributes = False
+            if '@ignoreExtraFields' in xml_dict:
+                self.ignoreExtraFields = True
+            else:
+                self.ignoreExtraFields = False
+            if '@ignoreExtraGroups' in xml_dict:
+                self.ignoreExtraGroups = True
+            else:
+                self.ignoreExtraGroups = False
+            if '@extends' in xml_dict:
+                parent_validator = get_validator(
+                    xml_dict['@extends'], definitions=self.definitions)
+                xml_extended_dict = parent_validator.get_xml_dict()
+                xml_dict = merge_dicts(xml_dict, xml_extended_dict)
         else:
             xml_dict = None
             self.valid_class = False
@@ -762,9 +771,15 @@ class ApplicationValidator(Validator):
         """
         if Path(application).exists():
             app_path = Path(application).resolve()
+        elif self.applications is not None:
+            app_path = self.applications / (f'{application}.nxdl.xml')
+            if not app_path.exists() and self.contributions is not None:
+                app_path = self.contributions / (f'{application}.nxdl.xml') 
+        elif self.contributions is not None:
+            app_path = self.contributions / (f'{application}.nxdl.xml')
         else:
-            app_path = self.application_directory / (f'{application}.nxdl.xml')
-        if app_path.exists():
+            app_path = None
+        if app_path is not None and app_path.exists():
             tree = ET.parse(app_path)
         else:
             raise NeXusError(
