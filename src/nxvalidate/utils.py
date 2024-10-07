@@ -356,6 +356,45 @@ def readaxes(axes):
     else:
         return [str(axis) for axis in axes]
 
+
+def match_strings(pattern_string, target_string):
+    # Create regular expression patterns for both cases
+    """
+    Check if a target string matches a given pattern string, allowing for
+    uppercase letters at the start or end of the pattern string.
+
+    Parameters
+    ----------
+    pattern_string : str
+        The string to be matched against.
+    target_string : str
+        The string to be matched.
+
+    Returns
+    -------
+    bool
+        True if the target string matches the pattern string, False otherwise.
+    """
+    start_pattern = r'^([A-Z]+)([a-z_]+)$'
+    end_pattern = r'^([a-z_]+)([A-Z]+)$'
+    
+    start_match = re.match(start_pattern, pattern_string)
+    end_match = re.match(end_pattern, pattern_string)
+    
+    if start_match:
+        lowercase_part = start_match.group(2)
+        target_pattern = f'^[a-z_]+{re.escape(lowercase_part)}$'
+        if re.match(target_pattern, target_string):
+            return True
+    elif end_match:
+        lowercase_part = end_match.group(1)
+        target_pattern = f'^{re.escape(lowercase_part)}[a-z_]+$'
+        if re.match(target_pattern, target_string):
+            return True
+    
+    return False
+
+
 class ColorFormatter(logging.Formatter):
     black = "\x1b[30m"
     orange = "\x1b[1m\x1b[38;2;255;128;0m"

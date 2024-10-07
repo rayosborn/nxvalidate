@@ -17,8 +17,8 @@ from .utils import (ColorFormatter, is_valid_bool, is_valid_char,
                     is_valid_char_or_number, is_valid_complex, is_valid_float,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
-                    merge_dicts, package_files, readaxes, strip_namespace,
-                    xml_to_dict)
+                    match_strings, merge_dicts, package_files, readaxes,
+                    strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -188,9 +188,9 @@ class GroupValidator(Validator):
         self.nxclass = nxclass
         self.xml_dict = self.get_xml_dict()
         if self.valid_class:
-            self.valid_fields = self.get_valid_fields()
-            self.valid_groups = self.get_valid_groups()
-            self.valid_attributes = self.get_valid_attributes()
+            self.get_valid_fields()
+            self.get_valid_groups()
+            self.get_valid_attributes()
 
     def get_xml_dict(self):
         """
@@ -260,19 +260,25 @@ class GroupValidator(Validator):
             field.
         """
         valid_fields = {}
+        partial_fields = {}
         if self.xml_dict is not None:
             if 'field' not in self.xml_dict:
-                return valid_fields
+                self.valid_fields = valid_fields
+                self.partial_fields = partial_fields
+                return
             fields = self.xml_dict['field']
             for field in fields:
-                valid_fields[field] = fields[field]
-                if ('@nameType' in fields[field] and
-                        fields[field]['@nameType'] == 'any'):
-                    if self.ignoreExtraFields is False:
-                        self.ignoreExtraFields = 1
-                    else:
-                        self.ignoreExtraFields += 1
-        return valid_fields
+                if '@nameType' in fields[field]:
+                    if fields[field]['@nameType'] == 'any':
+                        self.ignoreExtraFields = True
+                    elif fields[field]['@nameType'] == 'partial':
+                        partial_fields[field] = fields[field]
+                        partial_fields[field]['@name'] = field
+                else:
+                    valid_fields[field] = fields[field]
+
+        self.valid_fields = valid_fields
+        self.partial_fields = partial_fields
     
     def get_valid_groups(self):
         """
@@ -286,13 +292,24 @@ class GroupValidator(Validator):
             group.
         """
         valid_groups = {}
+        partial_groups = {}
         if self.xml_dict is not None:
             if 'group' not in self.xml_dict:
-                return valid_groups
+                self.valid_groups = valid_groups
+                self.partial_groups = partial_groups
+                return
             groups = self.xml_dict['group']
             for group in groups:
-                valid_groups[group] = groups[group]
-        return valid_groups
+                if '@nameType' in groups[group]:
+                    if groups[group]['@nameType'] == 'any':
+                        self.ignoreExtraGroups = True
+                    elif groups[group]['@nameType'] == 'partial':
+                        partial_groups[group] = groups[group]
+                        partial_groups[group]['@name'] = group
+                else:
+                    valid_groups[group] = groups[group]
+        self.valid_groups = valid_groups
+        self.partial_groups = partial_groups
     
     def get_valid_attributes(self):
         """
@@ -305,14 +322,15 @@ class GroupValidator(Validator):
             are the attribute names and the values are the attribute
             values.
         """
-        valid_attrs = {}
+        valid_attributes = {}
         if self.xml_dict is not None:
             if 'attribute' not in self.xml_dict:
-                return valid_attrs
-            attrs = self.xml_dict['attribute']
-            for attr in attrs:
-                valid_attrs[attr] = attrs[attr]
-        return valid_attrs
+                self.valid_attributes = valid_attributes
+                return
+            attributes = self.xml_dict['attribute']
+            for attribute in attributes:
+                valid_attributes[attribute] = attributes[attribute]
+        self.valid_attributes = valid_attributes
     
     def validate(self, group, indent=0): 
         """
@@ -334,29 +352,39 @@ class GroupValidator(Validator):
         if not is_valid_name(group.nxname):
             self.log(f'"{group.nxname}" is an invalid name', level='error')
         if not self.valid_class:
-            self.log(f'{group.nxclass} is not a valid base class', level='error')
+            self.log(f'{group.nxclass} is not a valid base class',
+                     level='error')
             self.output_log()
             return
         parent = group.nxgroup
         if parent:
             parent_validator = get_validator(parent.nxclass,
                                              definitions=self.definitions)
+            parsed = False
             if group.nxname in parent_validator.valid_groups:
                 cls = parent_validator.valid_groups[group.nxname]['@type']
                 if group.nxclass != cls:
                     self.log(f'{group.nxname} should have a class of '
-                             f'{cls}, not {group.nxclass}',
-                             level='error')
-                else:
-                    self.log(f'This is a valid group in {parent.nxclass}')
-            elif group.nxclass not in parent_validator.valid_groups:
-                if parent_validator.ignoreExtraGroups:
-                    self.log(f'{group.nxclass} is not defined in '
-                             f'{parent.nxclass}. '
-                             'Additional classes are allowed.')
-                else:
-                    self.log(f'{group.nxclass} is an invalid class in '
-                             f'{parent.nxclass}', level='error')
+                             f'{cls}, not {group.nxclass}', level='error')
+                parsed = True
+            elif parent_validator.partial_groups:
+                for partial_name in parent_validator.partial_groups:
+                    if match_strings(partial_name, group.nxname):
+                        self.log(f'This group name matches "{partial_name}", '
+                         f'which is allowed in {parent.nxclass}')
+                        parsed = True
+            if not parsed:
+                if group.nxclass in parent_validator.valid_groups:
+                    self.log('This group is a valid class in '
+                             f'{parent.nxclass}')
+                elif group.nxclass not in parent_validator.valid_groups:
+                    if parent_validator.ignoreExtraGroups:
+                        self.log(f'{group.nxclass} is not defined in '
+                                 f'{parent.nxclass}. '
+                                 'Additional classes are allowed.')
+                    else:
+                        self.log(f'{group.nxclass} is an invalid class in '
+                                 f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
             if attribute in self.valid_attributes:
@@ -375,19 +403,19 @@ class GroupValidator(Validator):
                 signal = group.attrs['signal']
                 if signal not in group.entries:
                     self.log(
-                        f'Signal "{signal}" not present in group'
+                        f'Signal "{signal}" is not present in the group'
                         f' "{group.nxpath}"', level='error')
             else:
                 signal = None
                 self.log(
-                    f'"@signal" not defined in NXdata group "{group.nxpath}"',
+                    f'"@signal" is not present in the group "{group.nxpath}"',
                     level='error')
             if 'axes' in group.attrs:
                 axes = readaxes(group.attrs['axes'])
                 for axis in axes:
                     if axis != '.' and axis not in group.entries:
                         self.log(
-                            f'Axis {axis}" not present in group '
+                            f'Axis {axis}" is not present in the group '
                             f'"{group.nxpath}"', level='error')
                 if signal in group and group[signal].exists():
                     if len(axes) != group[signal].ndim:
@@ -398,7 +426,7 @@ class GroupValidator(Validator):
                         self.log('"@axes" has the correct length')
             else:
                 self.log(
-                    f'"@axes" not defined in NXdata group "{group.nxpath}"',
+                    f'"@axes" is not present in the group "{group.nxpath}"',
                     level='error')
 
         for entry in group.entries: 
@@ -408,6 +436,10 @@ class GroupValidator(Validator):
                     tag = self.valid_fields[entry]
                 else:
                     tag = None
+                    for partial_name in self.partial_fields:
+                        if match_strings(partial_name, entry):
+                            tag = self.partial_fields[partial_name]
+                            break
                 field_validator.validate(tag, item, parent=self, indent=indent)
         self.output_log()
                 
@@ -433,62 +465,63 @@ class FieldValidator(Validator):
         """
         if dtype == 'NX_DATE_TIME': 
             if is_valid_iso8601(field.nxvalue):
-                self.log('This field is a valid NX_DATE_TIME')
+                self.log('The field value is a valid NX_DATE_TIME')
             else:
-                self.log('This field is not a valid NX_DATE_TIME',
+                self.log('The field value is not a valid NX_DATE_TIME',
                          level='warning')
         elif dtype == 'NX_INT':
             if is_valid_int(field.dtype):
-                self.log('This field is a valid NX_INT')
+                self.log('The field value is a valid NX_INT')
             else:
                 self.log('This field is not a valid NX_INT', level='warning')
         elif dtype == 'NX_FLOAT':
             if is_valid_float(field.dtype):
-                self.log('This field is a valid NX_FLOAT')
+                self.log('The field value is a valid NX_FLOAT')
             else:
-                self.log('This field is not a valid fNX_FLOAT',
+                self.log('The field value is not a valid fNX_FLOAT',
                          level='warning')
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
-                self.log('This field is a valid NX_BOOLEAN')
+                self.log('The field value is a valid NX_BOOLEAN')
             else:
-                self.log('This field is not a valid NX_BOOLEAN',
+                self.log('The field value is not a valid NX_BOOLEAN',
                          level='warning')         
         elif dtype == 'NX_CHAR':
             if is_valid_char(field.dtype):
-                self.log('This field is a valid NX_CHAR')
+                self.log('The field value is a valid NX_CHAR')
             else:
-                self.log('This field is not a valid NX_CHAR',
+                self.log('The field value is not a valid NX_CHAR',
                          level='warning')                  
         elif dtype == 'NX_CHAR_OR_NUMBER':
             if is_valid_char_or_number(field.dtype):
-                self.log('This field is a valid NX_CHAR_OR_NUMBER')
+                self.log('TThe field value is a valid NX_CHAR_OR_NUMBER')
             else:
-                self.log('This field is not a valid NX_CHAR_OR_NUMBER',
+                self.log('The field value is not a valid NX_CHAR_OR_NUMBER',
                          level='warning')                
         elif dtype == 'NX_COMPLEX':
             if is_valid_complex(field.dtype):
-                self.log('This field is a valid NX_COMPLEX value')
+                self.log('The field value is a valid NX_COMPLEX value')
             else:
-                self.log('This field is not a valid NX_COMPLEX value',
+                self.log('The field value is not a valid NX_COMPLEX value',
                          level='warning') 
         elif dtype == 'NX_NUMBER':
             if is_valid_number(field.dtype):
-                self.log('This field is a valid NX_NUMBER')
+                self.log('The field value is a valid NX_NUMBER')
             else:
-                self.log('This field is not a valid NX_NUMBER',
+                self.log('The field value is not a valid NX_NUMBER',
                          level='warning')       
         elif dtype == 'NX_POSINT':
             if is_valid_posint(field.dtype):
-                self.log('This field is a valid NX_POSINT')
+                self.log('The field value is a valid NX_POSINT')
             else:
-                self.log(f'This field is not a valid NX_POSINT',
+                self.log(f'The field value is not a valid NX_POSINT',
                          level='warning')    
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
-                self.log(f'This field is a valid NX_UINT')
+                self.log(f'The field value is a valid NX_UINT')
             else:
-                self.log(f'This field is not a valid NX_UINT', level='warning')        
+                self.log(f'The field value is not a valid NX_UINT',
+                         level='warning')        
 
     def check_dimensions(self, field, dimensions):
         """
@@ -565,14 +598,13 @@ class FieldValidator(Validator):
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
-                    self.log(f'The suggested attribute "{attr}" is defined')
+                    self.log(f'The suggested attribute "{attr}" is present')
                 else:
                     self.log(
-                        f'The suggested attribute "{attr}" is not defined',
-                        level='warning')
+                        f'The suggested attribute "{attr}" is not present')
             checked_attributes += attributes
         for attr in [a for a in field.attrs if a not in checked_attributes]:
-            self.log(f'"{attr}" is defined as an attribute')
+            self.log(f'The attribute "{attr}" is present')
 
     def output_log(self):
         """
@@ -631,11 +663,15 @@ class FieldValidator(Validator):
             else:
                 self.log(f'This is an optional field in the NeXus file')
         elif tag is not None:
-            self.log(f'This is a valid field in {group.nxclass}')
+            if '@name' in tag:
+                self.log(f'This field name matches "{tag["@name"]}", '
+                         f'which is allowed in {group.nxclass}')
+            else:
+                self.log(f'This is a valid field in {group.nxclass}')
         if tag is None:
-            if self.parent.ignoreExtraFields:
-                self.log(f'This field is not defined in {group.nxclass}. '
-                         f'Additional fields are allowed.')
+            if self.parent.ignoreExtraFields is True:
+                self.log(f'This field is not defined in {group.nxclass} '
+                         'groups, but additional fields are allowed')
             else:
                 self.log(f'This field is not defined in {group.nxclass}',
                          level='warning')
