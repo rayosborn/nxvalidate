@@ -3,7 +3,7 @@
 <!--
 # NeXus - Neutron and X-ray Common Data Format
 # 
-# Copyright (C) 2008-2022 NeXus International Advisory Committee (NIAC)
+# Copyright (C) 2008-2024 NeXus International Advisory Committee (NIAC)
 # 
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -29,6 +29,13 @@
 	<doc>
 		This is the base object of NeXus
 	</doc>
-        <!--attribute name="name"><doc>name of instance</doc></attribute-->
+    <group type="NXcollection" />
+    <group type="NXdata" />
+    <group type="NXlog" />
+    <group type="NXnote" />
+    <group type="NXparameters" />
+    <group name="GROUPNAME_log" type="NXlog" nameType="partial" />
+    <field name="FIELDNAME_errors" type="NX_NUMBER" nameType="partial" />
+    <field name="FIELDNAME_weights" type="NX_NUMBER" nameType="partial" />
 </definition>
 
