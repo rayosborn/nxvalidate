@@ -420,7 +420,7 @@
 			<doc>data label</doc>
 		</attribute>
 	</field>
-	<field name="FIELDNAME_errors" type="NX_NUMBER" nameType="any">
+	<field name="FIELDNAME_errors" type="NX_NUMBER" nameType="partial">
 		<doc>
 			"Errors" (meaning *uncertainties* or *standard deviations*)
 			associated with any field named ``FIELDNAME`` in this ``NXdata``
