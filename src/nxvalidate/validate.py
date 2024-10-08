@@ -250,14 +250,13 @@ class GroupValidator(Validator):
 
     def get_valid_fields(self):
         """
-        Retrieves the valid fields from the XML root.
+        Retrieves valid fields from the NXDL file.
 
-        Returns
-        -------
-        valid_fields : dict
-            A dictionary containing the valid fields, where the keys are
-            the field names and the values are the attributes of the
-            field.
+        This instantiates two dictionaries. The valid_fields dictionary
+        contains fields that are defined in the NXDL file with fixed
+        names. The partial_fields dictionary contains fields whose names
+        have uppercase characters that can be substituted for the actual
+        name in a NeXus file.
         """
         valid_fields = {}
         partial_fields = {}
@@ -283,14 +282,13 @@ class GroupValidator(Validator):
 
     def get_valid_groups(self):
         """
-        Retrieves the valid groups from the XML root.
+        Retrieves valid groups from the NXDL file.
 
-        Returns
-        -------
-        valid_groups : dict
-            A dictionary containing the valid groups, where the keys are
-            the group types and the values are the attributes of the
-            group.
+        This instantiates two dictionaries. The valid_groups dictionary
+        contains groups that are defined in the NXDL file with fixed
+        names. The partial_groups dictionary contains groups whose names
+        have uppercase characters that can be substituted for the actual
+        name in a NeXus file
         """
         valid_groups = {}
         partial_groups = {}
@@ -315,14 +313,13 @@ class GroupValidator(Validator):
     
     def get_valid_attributes(self):
         """
-        Retrieves the valid attributes from the XML root.
+        Retrieves valid group attributes from the NXDL file.
 
-        Returns
-        -------
-        valid_attrs : dict
-            A dictionary containing the valid attributes, where the keys
-            are the attribute names and the values are the attribute
-            values.
+        This instantiates two dictionaries. The valid_attributes
+        dictionary contains attributes that are defined in the NXDL file
+        with fixed names. The partial_attributes dictionary contains
+        attributes whose names have uppercase characters that can be
+        substituted for the actual name in a NeXus file
         """
         valid_attributes = {}
         partial_attributes = {}
