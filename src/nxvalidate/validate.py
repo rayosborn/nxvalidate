@@ -397,17 +397,27 @@ class GroupValidator(Validator):
                                  f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
+            parsed = False
             if attribute in self.valid_attributes:
                 self.log(
                     f'"@{attribute}" is a valid attribute in {group.nxclass}')
-            elif self.ignoreExtraAttributes:
-                self.log(
-                    f'"@{attribute}" is not defined as an attribute in '
-                    f'{group.nxclass}. Additional attributes are allowed.')
-            else:
-                self.log(
-                    f'"@{attribute}" is not defined as an attribute'
-                    f' in {group.nxclass}', level='warning')
+                parsed = True
+            elif self.partial_attributes:
+                for partial_name in self.partial_attributes:
+                    if match_strings(partial_name, attribute):
+                        self.log(
+                            f'"@{attribute}" matches "{partial_name}", '
+                            f'which is allowed in {group.nxclass}')
+                        parsed = True
+            if not parsed:
+                if self.ignoreExtraAttributes:
+                    self.log(
+                        f'"@{attribute}" is not defined as an attribute in '
+                        f'{group.nxclass}. Additional attributes are allowed.')
+                else:
+                    self.log(
+                        f'"@{attribute}" is not defined as an attribute'
+                        f' in {group.nxclass}', level='warning')
         if group.nxclass == 'NXdata':
             if 'signal' in group.attrs:
                 signal = group.attrs['signal']
