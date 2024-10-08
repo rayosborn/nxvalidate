@@ -618,13 +618,22 @@ class FieldValidator(Validator):
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
-                    self.log(f'The suggested attribute "{attr}" is present')
-                else:
+                    self.log(f'The suggested attribute "@{attr}" is present')
+                    checked_attributes.append(attr)
+                elif ('@nameType' in attributes[attr] and
+                      attributes[attr]['@nameType'] == 'partial'):
+                    for field_attribute in field.attrs:
+                        if match_strings(attr, field_attribute):
+                            self.log(
+                                f'"@{field_attribute}" matches the suggested '
+                                f'attribute "{attr}"')
+                            checked_attributes.append(attr)
+                            checked_attributes.append(field_attribute)  
+                if attr not in checked_attributes:
                     self.log(
-                        f'The suggested attribute "{attr}" is not present')
-            checked_attributes += attributes
+                        f'The suggested attribute "@{attr}" is not present')
         for attr in [a for a in field.attrs if a not in checked_attributes]:
-            self.log(f'The attribute "{attr}" is present')
+            self.log(f'The attribute "@{attr}" is present')
 
     def output_log(self):
         """
