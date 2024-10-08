@@ -323,14 +323,25 @@ class GroupValidator(Validator):
             values.
         """
         valid_attributes = {}
+        partial_attributes = {}
         if self.xml_dict is not None:
             if 'attribute' not in self.xml_dict:
                 self.valid_attributes = valid_attributes
+                self.partial_attributes = partial_attributes
                 return
             attributes = self.xml_dict['attribute']
             for attribute in attributes:
-                valid_attributes[attribute] = attributes[attribute]
+                if '@nameType' in attributes[attribute]:
+                    if attributes[attribute]['@nameType'] == 'any':
+                        valid_attributes[attribute] = attributes[attribute]
+                        self.ignoreExtraAttributes = True
+                    elif attributes[attribute]['@nameType'] == 'partial':
+                        partial_attributes[attribute] = attributes[attribute]
+                        partial_attributes[attribute]['@name'] = attribute
+                else:
+                    valid_attributes[attribute] = attributes[attribute]
         self.valid_attributes = valid_attributes
+        self.partial_attributes = partial_attributes
     
     def validate(self, group, indent=0): 
         """
