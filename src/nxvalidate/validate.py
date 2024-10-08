@@ -270,6 +270,7 @@ class GroupValidator(Validator):
             for field in fields:
                 if '@nameType' in fields[field]:
                     if fields[field]['@nameType'] == 'any':
+                        valid_fields[field] = fields[field]
                         self.ignoreExtraFields = True
                     elif fields[field]['@nameType'] == 'partial':
                         partial_fields[field] = fields[field]
@@ -278,8 +279,8 @@ class GroupValidator(Validator):
                     valid_fields[field] = fields[field]
 
         self.valid_fields = valid_fields
-        self.partial_fields = partial_fields
-    
+        self.partial_fields = partial_fields    
+
     def get_valid_groups(self):
         """
         Retrieves the valid groups from the XML root.
@@ -302,6 +303,7 @@ class GroupValidator(Validator):
             for group in groups:
                 if '@nameType' in groups[group]:
                     if groups[group]['@nameType'] == 'any':
+                        valid_groups[group] = groups[group]
                         self.ignoreExtraGroups = True
                     elif groups[group]['@nameType'] == 'partial':
                         partial_groups[group] = groups[group]
@@ -1028,18 +1030,21 @@ def inspect_base_class(base_class, definitions=None):
         log(f"Definitions: {validator.definitions}\n")
         return
 
-    if validator.valid_attributes:
+    if validator.valid_attributes or validator.partial_attributes:
         log('Allowed Attributes')
-        for attribute in validator.valid_attributes:
+        attributes = validator.valid_attributes
+        attributes.update(validator.partial_attributes)
+        for attribute in attributes:
             log(f"@{attribute}", indent=1)
-    if validator.valid_groups:
+    if validator.valid_groups or validator.partial_groups:
         log('Allowed Groups')
-        for group in validator.valid_groups:
-            items = {k: v for k, v in validator.valid_groups[group].items()
-                     if v != group}
-            if '@name' in validator.valid_groups[group]:
-                name = validator.valid_groups[group]['@name']
-                group = validator.valid_groups[group]['@type']
+        groups = validator.valid_groups
+        groups.update(validator.partial_groups)
+        for group in groups:
+            items = {k: v for k, v in groups[group].items() if v != group}
+            if '@name' in groups[group]:
+                name = groups[group]['@name']
+                group = groups[group]['@type']
                 attrs = {k: v for k, v in items.items() if v != group
                          and k.startswith('@')}
                 log(f"{name}[{group}]: {attrs}", indent=1)
@@ -1053,11 +1058,12 @@ def inspect_base_class(base_class, definitions=None):
                         if not k.startswith('@')}
                 for tag in tags:
                     log(f"{tag}: {tags[tag]}", indent=2)
-    if validator.valid_fields:
-        log('Allowed Fields')              
-        for field in validator.valid_fields:
-            items = {k: v for k, v in validator.valid_fields[field].items()
-                     if v != field}
+    if validator.valid_fields or validator.partial_fields:
+        log('Allowed Fields')
+        fields = validator.valid_fields
+        fields.update(validator.partial_fields)
+        for field in fields:
+            items = {k: v for k, v in fields[field].items() if v != field}
             attrs = {k: v for k, v in items.items() if k.startswith('@')}
             log(f"{field}: {attrs}", indent=1)
             tags = {k: v for k, v in items.items() if not k.startswith('@')}
