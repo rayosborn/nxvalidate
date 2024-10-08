@@ -250,14 +250,13 @@ class GroupValidator(Validator):
 
     def get_valid_fields(self):
         """
-        Retrieves the valid fields from the XML root.
+        Retrieves valid fields from the NXDL file.
 
-        Returns
-        -------
-        valid_fields : dict
-            A dictionary containing the valid fields, where the keys are
-            the field names and the values are the attributes of the
-            field.
+        This instantiates two dictionaries. The valid_fields dictionary
+        contains fields that are defined in the NXDL file with fixed
+        names. The partial_fields dictionary contains fields whose names
+        have uppercase characters that can be substituted for the actual
+        name in a NeXus file.
         """
         valid_fields = {}
         partial_fields = {}
@@ -270,6 +269,7 @@ class GroupValidator(Validator):
             for field in fields:
                 if '@nameType' in fields[field]:
                     if fields[field]['@nameType'] == 'any':
+                        valid_fields[field] = fields[field]
                         self.ignoreExtraFields = True
                     elif fields[field]['@nameType'] == 'partial':
                         partial_fields[field] = fields[field]
@@ -278,18 +278,17 @@ class GroupValidator(Validator):
                     valid_fields[field] = fields[field]
 
         self.valid_fields = valid_fields
-        self.partial_fields = partial_fields
-    
+        self.partial_fields = partial_fields    
+
     def get_valid_groups(self):
         """
-        Retrieves the valid groups from the XML root.
+        Retrieves valid groups from the NXDL file.
 
-        Returns
-        -------
-        valid_groups : dict
-            A dictionary containing the valid groups, where the keys are
-            the group types and the values are the attributes of the
-            group.
+        This instantiates two dictionaries. The valid_groups dictionary
+        contains groups that are defined in the NXDL file with fixed
+        names. The partial_groups dictionary contains groups whose names
+        have uppercase characters that can be substituted for the actual
+        name in a NeXus file
         """
         valid_groups = {}
         partial_groups = {}
@@ -302,6 +301,7 @@ class GroupValidator(Validator):
             for group in groups:
                 if '@nameType' in groups[group]:
                     if groups[group]['@nameType'] == 'any':
+                        valid_groups[group] = groups[group]
                         self.ignoreExtraGroups = True
                     elif groups[group]['@nameType'] == 'partial':
                         partial_groups[group] = groups[group]
@@ -313,24 +313,34 @@ class GroupValidator(Validator):
     
     def get_valid_attributes(self):
         """
-        Retrieves the valid attributes from the XML root.
+        Retrieves valid group attributes from the NXDL file.
 
-        Returns
-        -------
-        valid_attrs : dict
-            A dictionary containing the valid attributes, where the keys
-            are the attribute names and the values are the attribute
-            values.
+        This instantiates two dictionaries. The valid_attributes
+        dictionary contains attributes that are defined in the NXDL file
+        with fixed names. The partial_attributes dictionary contains
+        attributes whose names have uppercase characters that can be
+        substituted for the actual name in a NeXus file
         """
         valid_attributes = {}
+        partial_attributes = {}
         if self.xml_dict is not None:
             if 'attribute' not in self.xml_dict:
                 self.valid_attributes = valid_attributes
+                self.partial_attributes = partial_attributes
                 return
             attributes = self.xml_dict['attribute']
             for attribute in attributes:
-                valid_attributes[attribute] = attributes[attribute]
+                if '@nameType' in attributes[attribute]:
+                    if attributes[attribute]['@nameType'] == 'any':
+                        valid_attributes[attribute] = attributes[attribute]
+                        self.ignoreExtraAttributes = True
+                    elif attributes[attribute]['@nameType'] == 'partial':
+                        partial_attributes[attribute] = attributes[attribute]
+                        partial_attributes[attribute]['@name'] = attribute
+                else:
+                    valid_attributes[attribute] = attributes[attribute]
         self.valid_attributes = valid_attributes
+        self.partial_attributes = partial_attributes
     
     def validate(self, group, indent=0): 
         """
@@ -387,17 +397,27 @@ class GroupValidator(Validator):
                                  f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
+            parsed = False
             if attribute in self.valid_attributes:
                 self.log(
                     f'"@{attribute}" is a valid attribute in {group.nxclass}')
-            elif self.ignoreExtraAttributes:
-                self.log(
-                    f'"@{attribute}" is not defined as an attribute in '
-                    f'{group.nxclass}. Additional attributes are allowed.')
-            else:
-                self.log(
-                    f'"@{attribute}" is not defined as an attribute'
-                    f' in {group.nxclass}', level='warning')
+                parsed = True
+            elif self.partial_attributes:
+                for partial_name in self.partial_attributes:
+                    if match_strings(partial_name, attribute):
+                        self.log(
+                            f'"@{attribute}" matches "{partial_name}", '
+                            f'which is allowed in {group.nxclass}')
+                        parsed = True
+            if not parsed:
+                if self.ignoreExtraAttributes:
+                    self.log(
+                        f'"@{attribute}" is not defined as an attribute in '
+                        f'{group.nxclass}. Additional attributes are allowed.')
+                else:
+                    self.log(
+                        f'"@{attribute}" is not defined as an attribute'
+                        f' in {group.nxclass}', level='warning')
         if group.nxclass == 'NXdata':
             if 'signal' in group.attrs:
                 signal = group.attrs['signal']
@@ -598,13 +618,22 @@ class FieldValidator(Validator):
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
-                    self.log(f'The suggested attribute "{attr}" is present')
-                else:
+                    self.log(f'The suggested attribute "@{attr}" is present')
+                    checked_attributes.append(attr)
+                elif ('@nameType' in attributes[attr] and
+                      attributes[attr]['@nameType'] == 'partial'):
+                    for field_attribute in field.attrs:
+                        if match_strings(attr, field_attribute):
+                            self.log(
+                                f'"@{field_attribute}" matches the suggested '
+                                f'attribute "{attr}"')
+                            checked_attributes.append(attr)
+                            checked_attributes.append(field_attribute)  
+                if attr not in checked_attributes:
                     self.log(
-                        f'The suggested attribute "{attr}" is not present')
-            checked_attributes += attributes
+                        f'The suggested attribute "@{attr}" is not present')
         for attr in [a for a in field.attrs if a not in checked_attributes]:
-            self.log(f'The attribute "{attr}" is present')
+            self.log(f'The attribute "@{attr}" is present')
 
     def output_log(self):
         """
@@ -1017,18 +1046,21 @@ def inspect_base_class(base_class, definitions=None):
         log(f"Definitions: {validator.definitions}\n")
         return
 
-    if validator.valid_attributes:
+    if validator.valid_attributes or validator.partial_attributes:
         log('Allowed Attributes')
-        for attribute in validator.valid_attributes:
+        attributes = validator.valid_attributes
+        attributes.update(validator.partial_attributes)
+        for attribute in attributes:
             log(f"@{attribute}", indent=1)
-    if validator.valid_groups:
+    if validator.valid_groups or validator.partial_groups:
         log('Allowed Groups')
-        for group in validator.valid_groups:
-            items = {k: v for k, v in validator.valid_groups[group].items()
-                     if v != group}
-            if '@name' in validator.valid_groups[group]:
-                name = validator.valid_groups[group]['@name']
-                group = validator.valid_groups[group]['@type']
+        groups = validator.valid_groups
+        groups.update(validator.partial_groups)
+        for group in groups:
+            items = {k: v for k, v in groups[group].items() if v != group}
+            if '@name' in groups[group]:
+                name = groups[group]['@name']
+                group = groups[group]['@type']
                 attrs = {k: v for k, v in items.items() if v != group
                          and k.startswith('@')}
                 log(f"{name}[{group}]: {attrs}", indent=1)
@@ -1042,11 +1074,12 @@ def inspect_base_class(base_class, definitions=None):
                         if not k.startswith('@')}
                 for tag in tags:
                     log(f"{tag}: {tags[tag]}", indent=2)
-    if validator.valid_fields:
-        log('Allowed Fields')              
-        for field in validator.valid_fields:
-            items = {k: v for k, v in validator.valid_fields[field].items()
-                     if v != field}
+    if validator.valid_fields or validator.partial_fields:
+        log('Allowed Fields')
+        fields = validator.valid_fields
+        fields.update(validator.partial_fields)
+        for field in fields:
+            items = {k: v for k, v in fields[field].items() if v != field}
             attrs = {k: v for k, v in items.items() if k.startswith('@')}
             log(f"{field}: {attrs}", indent=1)
             tags = {k: v for k, v in items.items() if not k.startswith('@')}
