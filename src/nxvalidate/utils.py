@@ -300,6 +300,15 @@ def xml_to_dict(element):
             continue
         elif child.tag == 'enumeration':
             result[child.tag] = [item.attrib['value'] for item in child]
+        elif child.tag == 'dimensions':
+            result[child.tag] =  {}
+            if 'rank' in child.attrib:
+                result[child.tag].update({'rank': child.attrib['rank']})
+            result[child.tag]['dim'] = {}
+            for item in [c for c in child if c.tag == 'dim']:
+                if 'index' in item.attrib and 'value' in item.attrib:
+                    result[child.tag]['dim'].update(
+                        {int(item.attrib['index']): item.attrib['value']})
         else:
             child_dict = convert_xml_dict(xml_to_dict(child))       
             if child.tag in result:
@@ -393,6 +402,29 @@ def match_strings(pattern_string, target_string):
             return True
     
     return False
+
+
+def check_dimension_sizes(dimensions):
+    """
+    Check if a list of values are all within one of each other.
+    
+    This handles the case where axis bin boundaries are stored.
+
+    Parameters
+    ----------
+    dimensions : list
+        The list of dimensions to be checked.
+
+    Returns
+    -------
+    bool
+        True if dimensions are the same to within ± 1, False otherwise.
+    """
+    if not dimensions:
+        return False
+    min_dimension = min(dimensions)
+    max_dimension = max(dimensions)
+    return max_dimension - min_dimension <= 1
 
 
 class ColorFormatter(logging.Formatter):
