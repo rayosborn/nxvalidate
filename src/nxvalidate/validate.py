@@ -659,7 +659,11 @@ class FieldValidator(Validator):
                             f'but the dimension index of "{s}" = {i}',
                             level='error')
                 else:
-                    if len(field.shape) > i and field.shape[i-1] == int(s):
+                    try:
+                        s = int(s)
+                    except ValueError:
+                        pass
+                    if len(field.shape) > i and field.shape[i-1] == s:
                         self.log(f'The field has the correct size of {s}')
                     else:
                         self.log(f'The field has size {field.shape}, '
