@@ -408,7 +408,7 @@ class GroupValidator(Validator):
         for symbol in self.symbols:
             self.symbols[symbol] = {}
 
-    def check_symbols(self):
+    def check_symbols(self, indent=None):
         """
         Checks for inconsistent values in the symbols dictionary.
 
@@ -417,6 +417,8 @@ class GroupValidator(Validator):
         'info' level. If two values differ by more than 1, prints a
         message at the 'error' level.
         """
+        if indent is not None:
+            self.indent = indent
         for symbol in self.symbols:
             values = []
             for entry in self.symbols[symbol]:
@@ -934,6 +936,7 @@ class ApplicationValidator(Validator):
             The name of the application to be validated.
         """
         super().__init__(definitions=definitions)
+        self.symbols = {}
         self.xml_dict = self.load_application(application)
         
     def load_application(self, application):
@@ -972,6 +975,9 @@ class ApplicationValidator(Validator):
             raise NeXusError(
                 f'The application definition {application}'
                 'does not contain the correct root tag.')
+        symbols = xml_root.find('symbols')
+        if symbols is not None:
+            self.symbols.update(xml_to_dict(symbols)['symbol'])
         xml_dict = xml_to_dict(xml_root.find('group'))
         if xml_root.attrib['extends'] != 'NXobject':
             xml_extended_dict = self.load_application(
@@ -1000,6 +1006,8 @@ class ApplicationValidator(Validator):
             The current indentation level (default is 0).
         """
         self.indent = level
+        group_validator = get_validator(nxgroup.nxclass,
+                                        definitions=self.definitions)
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
@@ -1040,8 +1048,7 @@ class ApplicationValidator(Validator):
                     else:
                         minOccurs = 1
                     if field in nxgroup.entries:
-                        group_validator = get_validator(
-                            nxgroup.nxclass, definitions=self.definitions)
+                        group_validator.symbols.update(self.symbols)
                         field_validator.validate(
                             value[field], nxgroup[field],
                             parent=group_validator, minOccurs=minOccurs,
@@ -1061,7 +1068,9 @@ class ApplicationValidator(Validator):
                                 'in the NeXus file')
                         self.indent -= 1
                     self.output_log()
-        
+        group_validator.check_symbols(indent=level)
+        self.output_log()
+    
     def validate(self, entry):
         """
         Validates a NeXus entry against an XML definition.
