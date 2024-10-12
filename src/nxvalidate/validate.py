@@ -36,7 +36,8 @@ def get_logger():
     stream_handler = logging.StreamHandler(stream=sys.stdout)
     stream_handler.setFormatter(ColorFormatter('%(message)s'))    
     logger.addHandler(stream_handler)
-    logger.setLevel(logging.WARNING)    
+    logger.setLevel(logging.WARNING)
+    logger.total = {'warning': 0, 'error': 0}
     return logger
 
 
@@ -927,6 +928,10 @@ def validate_file(filename, path=None, definitions=None):
 
     validator.validate(path)
 
+    log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
+    log(f'Total number of warnings: {logger.total["warning"]}\n', level='all') 
+
+
 
 class ApplicationValidator(Validator):
 
@@ -1134,6 +1139,10 @@ def validate_application(filename, path=None, application=None,
 
         validator.validate(entry)
 
+        log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
+        log(f'Total number of warnings: {logger.total["warning"]}\n',
+            level='all') 
+
 
 def inspect_base_class(base_class, definitions=None):
     """
@@ -1222,7 +1231,9 @@ def log(message, level='info', indent=0, width=None):
         logger.log(logging.DEBUG, f'{4*indent*" "}{message}')
     elif level == 'warning':
         logger.warning(f'{4*indent*" "}{message}')
+        logger.total['warning'] += 1
     elif level == 'error':
         logger.error(f'{4*indent*" "}{message}')
+        logger.total['error'] += 1
     elif level == 'all':
         logger.critical(f'{4*indent*" "}{message}')
