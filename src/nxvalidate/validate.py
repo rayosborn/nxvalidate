@@ -36,7 +36,8 @@ def get_logger():
     stream_handler = logging.StreamHandler(stream=sys.stdout)
     stream_handler.setFormatter(ColorFormatter('%(message)s'))    
     logger.addHandler(stream_handler)
-    logger.setLevel(logging.WARNING)    
+    logger.setLevel(logging.WARNING)
+    logger.total = {'warning': 0, 'error': 0}
     return logger
 
 
@@ -346,6 +347,58 @@ class GroupValidator(Validator):
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
 
+    def check_data(self, group):
+        """
+        Checks that the signal and axes are present in the group.
+
+        This method also checks that the axes have the correct length
+        and that the axis sizes match the signal shape.
+
+        Parameters
+        ----------
+        group : NXgroup
+            The group to be checked.
+        """
+        if 'signal' in group.attrs:
+            signal = group.attrs['signal']
+            if signal in group.entries:
+                self.log(f'Signal "{signal}" is present in the group',
+                         level='info')
+                signal_field = group[signal]
+            else:
+                self.log(f'Signal "{signal}" is not present in the group',
+                         level='error')
+                signal = None
+        else:
+            self.log(f'"@signal" is not present in the group', level='error')
+            signal = None
+        if 'axes' in group.attrs:
+            axes = readaxes(group.attrs['axes'])
+            if signal in group and group[signal].exists():
+                if len(axes) != group[signal].ndim:
+                    self.log('"@axes" length does not match the signal rank',
+                             level='error')
+                else:
+                    self.log('"@axes" has the correct length')
+            for i, axis in enumerate(axes):
+                if axis in group.entries:
+                    self.log(f'Axis "{axis}" is present in the group',
+                             level='info')
+                    axis_field = group[axis]
+                    if signal in group and group[signal].exists():
+                        if check_dimension_sizes(
+                            [signal_field.shape[i], axis_field.shape[0]]):
+                            self.log(f'Axis "{axis}" size is consistent '
+                                     'with the signal shape', level='info')
+                        else:
+                            self.log(f'Axis "{axis}" size is inconsistent '
+                                     'with the signal shape', level='error')
+                elif axis != '.':
+                    self.log(f'Axis "{axis}" is not present in the group',
+                             level='error')
+        else:
+            self.log(f'"@axes" is not present in the group', level='error')
+
     def reset_symbols(self):
         """
         Resets all symbols dictionaries to be empty.
@@ -356,7 +409,7 @@ class GroupValidator(Validator):
         for symbol in self.symbols:
             self.symbols[symbol] = {}
 
-    def check_symbols(self):
+    def check_symbols(self, indent=None):
         """
         Checks for inconsistent values in the symbols dictionary.
 
@@ -365,6 +418,8 @@ class GroupValidator(Validator):
         'info' level. If two values differ by more than 1, prints a
         message at the 'error' level.
         """
+        if indent is not None:
+            self.indent = indent
         for symbol in self.symbols:
             values = []
             for entry in self.symbols[symbol]:
@@ -469,35 +524,7 @@ class GroupValidator(Validator):
                         f'"@{attribute}" is not defined as an attribute'
                         f' in {group.nxclass}', level='warning')
         if group.nxclass == 'NXdata':
-            if 'signal' in group.attrs:
-                signal = group.attrs['signal']
-                if signal not in group.entries:
-                    self.log(
-                        f'Signal "{signal}" is not present in the group'
-                        f' "{group.nxpath}"', level='error')
-            else:
-                signal = None
-                self.log(
-                    f'"@signal" is not present in the group "{group.nxpath}"',
-                    level='error')
-            if 'axes' in group.attrs:
-                axes = readaxes(group.attrs['axes'])
-                for axis in axes:
-                    if axis != '.' and axis not in group.entries:
-                        self.log(
-                            f'Axis {axis}" is not present in the group '
-                            f'"{group.nxpath}"', level='error')
-                if signal in group and group[signal].exists():
-                    if len(axes) != group[signal].ndim:
-                        self.log(
-                            '"@axes" length does not match the signal rank',
-                            level='error')
-                    else:
-                        self.log('"@axes" has the correct length')
-            else:
-                self.log(
-                    f'"@axes" is not present in the group "{group.nxpath}"',
-                    level='error')
+            self.check_data(group)
 
         self.reset_symbols()
         for entry in group.entries: 
@@ -633,7 +660,11 @@ class FieldValidator(Validator):
                             f'but the dimension index of "{s}" = {i}',
                             level='error')
                 else:
-                    if len(field.shape) > i and field.shape[i-1] == int(s):
+                    try:
+                        s = int(s)
+                    except ValueError:
+                        pass
+                    if len(field.shape) > i and field.shape[i-1] == s:
                         self.log(f'The field has the correct size of {s}')
                     else:
                         self.log(f'The field has size {field.shape}, '
@@ -897,6 +928,10 @@ def validate_file(filename, path=None, definitions=None):
 
     validator.validate(path)
 
+    log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
+    log(f'Total number of warnings: {logger.total["warning"]}\n', level='all') 
+
+
 
 class ApplicationValidator(Validator):
 
@@ -910,6 +945,7 @@ class ApplicationValidator(Validator):
             The name of the application to be validated.
         """
         super().__init__(definitions=definitions)
+        self.symbols = {}
         self.xml_dict = self.load_application(application)
         
     def load_application(self, application):
@@ -948,6 +984,9 @@ class ApplicationValidator(Validator):
             raise NeXusError(
                 f'The application definition {application}'
                 'does not contain the correct root tag.')
+        symbols = xml_root.find('symbols')
+        if symbols is not None:
+            self.symbols.update(xml_to_dict(symbols)['symbol'])
         xml_dict = xml_to_dict(xml_root.find('group'))
         if xml_root.attrib['extends'] != 'NXobject':
             xml_extended_dict = self.load_application(
@@ -976,6 +1015,8 @@ class ApplicationValidator(Validator):
             The current indentation level (default is 0).
         """
         self.indent = level
+        group_validator = get_validator(nxgroup.nxclass,
+                                        definitions=self.definitions)
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
@@ -1016,8 +1057,7 @@ class ApplicationValidator(Validator):
                     else:
                         minOccurs = 1
                     if field in nxgroup.entries:
-                        group_validator = get_validator(
-                            nxgroup.nxclass, definitions=self.definitions)
+                        group_validator.symbols.update(self.symbols)
                         field_validator.validate(
                             value[field], nxgroup[field],
                             parent=group_validator, minOccurs=minOccurs,
@@ -1037,7 +1077,9 @@ class ApplicationValidator(Validator):
                                 'in the NeXus file')
                         self.indent -= 1
                     self.output_log()
-        
+        group_validator.check_symbols(indent=level)
+        self.output_log()
+    
     def validate(self, entry):
         """
         Validates a NeXus entry against an XML definition.
@@ -1096,6 +1138,10 @@ def validate_application(filename, path=None, application=None,
         log(f"NXDL File: {validator.filepath}\n", level='all')
 
         validator.validate(entry)
+
+        log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
+        log(f'Total number of warnings: {logger.total["warning"]}\n',
+            level='all') 
 
 
 def inspect_base_class(base_class, definitions=None):
@@ -1185,7 +1231,9 @@ def log(message, level='info', indent=0, width=None):
         logger.log(logging.DEBUG, f'{4*indent*" "}{message}')
     elif level == 'warning':
         logger.warning(f'{4*indent*" "}{message}')
+        logger.total['warning'] += 1
     elif level == 'error':
         logger.error(f'{4*indent*" "}{message}')
+        logger.total['error'] += 1
     elif level == 'all':
         logger.critical(f'{4*indent*" "}{message}')
