@@ -13,12 +13,12 @@ from pathlib import Path
 
 from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
 
-from .utils import (ColorFormatter, is_valid_bool, is_valid_char,
-                    is_valid_char_or_number, is_valid_complex, is_valid_float,
-                    is_valid_int, is_valid_iso8601, is_valid_name,
-                    is_valid_number, is_valid_posint, is_valid_uint,
-                    match_strings, merge_dicts, package_files, readaxes,
-                    strip_namespace, xml_to_dict)
+from .utils import (ColorFormatter, check_dimension_sizes, is_valid_bool,
+                    is_valid_char, is_valid_char_or_number, is_valid_complex,
+                    is_valid_float, is_valid_int, is_valid_iso8601,
+                    is_valid_name, is_valid_number, is_valid_posint,
+                    is_valid_uint, match_strings, merge_dicts, package_files,
+                    readaxes, strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -243,6 +243,10 @@ class GroupValidator(Validator):
                     xml_dict['@extends'], definitions=self.definitions)
                 xml_extended_dict = parent_validator.get_xml_dict()
                 xml_dict = merge_dicts(xml_dict, xml_extended_dict)
+            if 'symbols' in xml_dict:
+                self.symbols = xml_dict['symbols']['symbol']
+            else:
+                self.symbols = {}
         else:
             xml_dict = None
             self.valid_class = False
@@ -341,7 +345,53 @@ class GroupValidator(Validator):
                     valid_attributes[attribute] = attributes[attribute]
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
-    
+
+    def reset_symbols(self):
+        """
+        Resets all symbols dictionaries to be empty.
+
+        This is used to initialize the dictionaries before validating
+        a NeXus group.
+        """
+        for symbol in self.symbols:
+            self.symbols[symbol] = {}
+
+    def check_symbols(self):
+        """
+        Checks for inconsistent values in the symbols dictionary.
+
+        If all values are the same, prints a message at the 'info' level.
+        If all values are the same to within ±1, prints a message at the
+        'info' level. If two values differ by more than 1, prints a
+        message at the 'error' level.
+        """
+        for symbol in self.symbols:
+            values = []
+            for entry in self.symbols[symbol]:
+                values.append(self.symbols[symbol][entry])
+            if not values:
+                continue
+            if len(set(values)) == 1:
+                self.log(f'All values for "{symbol}" are the same')
+                self.indent += 1
+                for entry in self.symbols[symbol]:
+                    self.log(f'{entry}: {self.symbols[symbol][entry]}')
+                self.indent -= 1
+            elif check_dimension_sizes(values):
+                self.log(f'All values for "{symbol}" are the same (to ±1)')
+                self.indent += 1
+                for entry in self.symbols[symbol]:
+                    self.log(f'{entry}: {self.symbols[symbol][entry]}')
+                self.indent -= 1
+            else:
+                self.log(f'Values for "{symbol}" are not unique',
+                         level='error')
+                self.indent += 1
+                for entry in self.symbols[symbol]:
+                    self.log(f'{entry}: {self.symbols[symbol][entry]}',
+                             level='error')
+                self.indent -= 1
+            
     def validate(self, group, indent=0): 
         """
         Validates a given group against the NeXus standard.
@@ -449,6 +499,7 @@ class GroupValidator(Validator):
                     f'"@axes" is not present in the group "{group.nxpath}"',
                     level='error')
 
+        self.reset_symbols()
         for entry in group.entries: 
             item = group.entries[entry]
             if item.nxclass == 'NXfield':
@@ -461,6 +512,7 @@ class GroupValidator(Validator):
                             tag = self.partial_fields[partial_name]
                             break
                 field_validator.validate(tag, item, parent=self, indent=indent)
+        self.check_symbols()
         self.output_log()
                 
 
@@ -498,7 +550,7 @@ class FieldValidator(Validator):
             if is_valid_float(field.dtype):
                 self.log('The field value is a valid NX_FLOAT')
             else:
-                self.log('The field value is not a valid fNX_FLOAT',
+                self.log('The field value is not a valid NX_FLOAT',
                          level='warning')
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
@@ -555,17 +607,37 @@ class FieldValidator(Validator):
             The base class attribute containing the dimensions to check
             against.
         """
-
-        if '@rank' in dimensions:
-            try:
-                rank = int(dimensions['@rank'])
-            except ValueError:
-                return
-            if field.ndim == rank:
-                self.log(f'The field has the correct rank of {rank}')
+        if 'rank' in dimensions:
+            rank = dimensions['rank']
+            if rank in self.parent.symbols:
+                self.parent.symbols[rank].update({field.nxname: field.ndim})
             else:
-                self.log(f'The field has rank {field.ndim}, should be {rank}',
-                         level='error')
+                try:
+                    rank = int(dimensions['rank'])
+                except ValueError:
+                    return
+                if field.ndim == rank:
+                    self.log(f'The field has the correct rank of {rank}')
+                else:
+                    self.log(f'The field has rank {field.ndim}, '
+                             f'should be {rank}', level='error')
+        if 'dim' in dimensions:
+            for i, s in dimensions['dim'].items():
+                if s in self.parent.symbols:
+                    if len(field.shape) > i-1:
+                        self.parent.symbols[s].update(
+                            {field.nxname: field.shape[i-1]})
+                    else:
+                        self.log(
+                            f'The field rank is {len(field.shape)}, '
+                            f'but the dimension index of "{s}" = {i}',
+                            level='error')
+                else:
+                    if len(field.shape) > i and field.shape[i-1] == int(s):
+                        self.log(f'The field has the correct size of {s}')
+                    else:
+                        self.log(f'The field has size {field.shape}, '
+                                 f'should be {s}', level='error')
 
     def check_enumeration(self, field, enumerations):
         """
@@ -618,20 +690,20 @@ class FieldValidator(Validator):
         if attributes:
             for attr in attributes:
                 if attr in field.attrs:
-                    self.log(f'The suggested attribute "@{attr}" is present')
+                    self.log(f'The defined attribute "@{attr}" is present')
                     checked_attributes.append(attr)
                 elif ('@nameType' in attributes[attr] and
                       attributes[attr]['@nameType'] == 'partial'):
                     for field_attribute in field.attrs:
                         if match_strings(attr, field_attribute):
                             self.log(
-                                f'"@{field_attribute}" matches the suggested '
+                                f'"@{field_attribute}" matches the defined '
                                 f'attribute "{attr}"')
                             checked_attributes.append(attr)
                             checked_attributes.append(field_attribute)  
                 if attr not in checked_attributes:
                     self.log(
-                        f'The suggested attribute "@{attr}" is not present')
+                        f'The defined attribute "@{attr}" is not present')
         for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'The attribute "@{attr}" is present')
 
