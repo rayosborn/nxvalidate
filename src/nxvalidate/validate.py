@@ -346,6 +346,58 @@ class GroupValidator(Validator):
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
 
+    def check_data(self, group):
+        """
+        Checks that the signal and axes are present in the group.
+
+        This method also checks that the axes have the correct length
+        and that the axis sizes match the signal shape.
+
+        Parameters
+        ----------
+        group : NXgroup
+            The group to be checked.
+        """
+        if 'signal' in group.attrs:
+            signal = group.attrs['signal']
+            if signal in group.entries:
+                self.log(f'Signal "{signal}" is present in the group',
+                         level='info')
+                signal_field = group[signal]
+            else:
+                self.log(f'Signal "{signal}" is not present in the group',
+                         level='error')
+                signal = None
+        else:
+            self.log(f'"@signal" is not present in the group', level='error')
+            signal = None
+        if 'axes' in group.attrs:
+            axes = readaxes(group.attrs['axes'])
+            if signal in group and group[signal].exists():
+                if len(axes) != group[signal].ndim:
+                    self.log('"@axes" length does not match the signal rank',
+                             level='error')
+                else:
+                    self.log('"@axes" has the correct length')
+            for i, axis in enumerate(axes):
+                if axis in group.entries:
+                    self.log(f'Axis "{axis}" is present in the group',
+                             level='info')
+                    axis_field = group[axis]
+                    if signal in group and group[signal].exists():
+                        if check_dimension_sizes(
+                            [signal_field.shape[i], axis_field.shape[0]]):
+                            self.log(f'Axis "{axis}" size is consistent '
+                                     'with the signal shape', level='info')
+                        else:
+                            self.log(f'Axis "{axis}" size is inconsistent '
+                                     'with the signal shape', level='error')
+                elif axis != '.':
+                    self.log(f'Axis "{axis}" is not present in the group',
+                             level='error')
+        else:
+            self.log(f'"@axes" is not present in the group', level='error')
+
     def reset_symbols(self):
         """
         Resets all symbols dictionaries to be empty.
@@ -469,35 +521,7 @@ class GroupValidator(Validator):
                         f'"@{attribute}" is not defined as an attribute'
                         f' in {group.nxclass}', level='warning')
         if group.nxclass == 'NXdata':
-            if 'signal' in group.attrs:
-                signal = group.attrs['signal']
-                if signal not in group.entries:
-                    self.log(
-                        f'Signal "{signal}" is not present in the group'
-                        f' "{group.nxpath}"', level='error')
-            else:
-                signal = None
-                self.log(
-                    f'"@signal" is not present in the group "{group.nxpath}"',
-                    level='error')
-            if 'axes' in group.attrs:
-                axes = readaxes(group.attrs['axes'])
-                for axis in axes:
-                    if axis != '.' and axis not in group.entries:
-                        self.log(
-                            f'Axis {axis}" is not present in the group '
-                            f'"{group.nxpath}"', level='error')
-                if signal in group and group[signal].exists():
-                    if len(axes) != group[signal].ndim:
-                        self.log(
-                            '"@axes" length does not match the signal rank',
-                            level='error')
-                    else:
-                        self.log('"@axes" has the correct length')
-            else:
-                self.log(
-                    f'"@axes" is not present in the group "{group.nxpath}"',
-                    level='error')
+            self.check_data(group)
 
         self.reset_symbols()
         for entry in group.entries: 
