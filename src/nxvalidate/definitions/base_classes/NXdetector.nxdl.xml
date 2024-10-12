@@ -40,7 +40,7 @@
       to single values (0D), lists (1D) and images (2), but three or higher dimensional arrays can be produced 
       by a detector at each trigger.
     </doc>
-    
+    <symbol name="dataRank"><doc>rank of data array</doc></symbol>
     <symbol name="nP"><doc>number of scan points (only present in scanning measurements)</doc></symbol>
     <symbol name="i"><doc>number of detector pixels in the first (slowest) direction</doc></symbol>
     <symbol name="j"><doc>number of detector pixels in the second (faster) direction</doc></symbol>
@@ -55,7 +55,7 @@
     <doc>Total time of flight</doc>
 
     <dimensions rank="1">
-      <dim index="1" value="tof+1" />
+      <dim index="1" value="tof" />
     </dimensions>
 
     <attribute name="axis" type="NX_POSINT"
@@ -81,7 +81,7 @@
     <doc>In DAQ clock pulses</doc>
 
     <dimensions rank="1">
-      <dim index="1" value="tof+1" />
+      <dim index="1" value="tof" />
     </dimensions>
 
     <attribute name="frequency" type="NX_NUMBER">
@@ -122,11 +122,9 @@
       shown here are merely illustrative of coordination between related datasets.
     </doc>
 
-    <dimensions rank="4">
-      <dim index="1" value="nP" />
-      <dim index="2" value="i" />
-      <dim index="3" value="j" />
-      <dim index="4" value="tof" />
+    <dimensions rank="dataRank">
+      <dim index="1" value="i" />
+      <dim index="2" value="tof" />
     </dimensions>
 
     <attribute name="long_name">
@@ -146,11 +144,9 @@
       as the data. The form data_error is deprecated.
     </doc>
 
-    <dimensions rank="4">
-      <dim index="1" value="nP" />
-      <dim index="2" value="i" />
-      <dim index="3" value="j" />
-      <dim index="4" value="tof" />
+    <dimensions rank="dataRank">
+      <dim index="1" value="i" />
+      <dim index="2" value="tof" />
     </dimensions>
   </field>
 
