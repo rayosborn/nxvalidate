@@ -346,6 +346,16 @@ class GroupValidator(Validator):
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
 
+    def reset_symbols(self):
+        """
+        Resets all symbols dictionaries to be empty.
+
+        This is used to initialize the dictionaries before validating
+        a NeXus group.
+        """
+        for symbol in self.symbols:
+            self.symbols[symbol] = {}
+
     def check_symbols(self):
         """
         Checks for inconsistent values in the symbols dictionary.
@@ -489,6 +499,7 @@ class GroupValidator(Validator):
                     f'"@axes" is not present in the group "{group.nxpath}"',
                     level='error')
 
+        self.reset_symbols()
         for entry in group.entries: 
             item = group.entries[entry]
             if item.nxclass == 'NXfield':
@@ -539,7 +550,7 @@ class FieldValidator(Validator):
             if is_valid_float(field.dtype):
                 self.log('The field value is a valid NX_FLOAT')
             else:
-                self.log('The field value is not a valid fNX_FLOAT',
+                self.log('The field value is not a valid NX_FLOAT',
                          level='warning')
         elif dtype == 'NX_BOOLEAN':
             if is_valid_bool(field.dtype):
