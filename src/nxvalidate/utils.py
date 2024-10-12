@@ -428,7 +428,6 @@ def check_dimension_sizes(dimensions):
 
 
 class ColorFormatter(logging.Formatter):
-    black = "\x1b[30m"
     orange = "\x1b[1m\x1b[38;2;255;128;0m"
     red = "\x1b[1;31m\x1b[4:0m"
     reset = "\x1b[0m"
@@ -437,14 +436,12 @@ class ColorFormatter(logging.Formatter):
     clear = "\x1b[0m"
 
     FORMATS = {
-        logging.INFO: black,
-        logging.WARNING: orange,
-        logging.ERROR: red,
-        logging.CRITICAL: black
+        logging.INFO: format_string,
+        logging.WARNING: orange + format_string + reset,
+        logging.ERROR: red + format_string + reset,
+        logging.CRITICAL: format_string
     }
     def format(self, record):
         level = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(self.format_string)
-        formatted_message = formatter.format(record)
-        return re.sub(r'(\S+)', f'{self.clear}{level}\\1\x1b[24m{self.reset}',
-                      formatted_message)
+        formatter = logging.Formatter(level)
+        return formatter.format(record)
