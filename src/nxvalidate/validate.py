@@ -11,7 +11,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
+from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
+                               NXsubentry, nxopen)
 
 from .utils import (ColorFormatter, check_dimension_sizes, is_valid_bool,
                     is_valid_char, is_valid_char_or_number, is_valid_complex,
@@ -130,6 +131,21 @@ class Validator():
             return result
         except Exception:
             return {}
+
+    def is_valid_link(self, item):
+        if item.is_external():
+            target = f'{item._filename}[{item._target}]'
+        else:
+            target = item._target
+        if item.exists():
+            if isinstance(item, NXfield):
+                self.log(f'This field is linked to "{target}"', level='info')
+            elif isinstance(item, NXgroup):
+                self.log(f'This group is linked to "{target}"', level='info')
+            return True
+        else:
+            self.log(f'This is a broken link to "{target}"', level='error')
+            return False
 
     def log(self, message, level='info', indent=None):
         """
@@ -466,6 +482,10 @@ class GroupValidator(Validator):
         self.indent += 1
         if not is_valid_name(group.nxname):
             self.log(f'"{group.nxname}" is an invalid name', level='error')
+        if isinstance(group, NXlink):
+            if not self.is_valid_link(group):
+                self.output_log()
+                return
         if not self.valid_class:
             self.log(f'{group.nxclass} is not a valid base class',
                      level='error')
@@ -502,6 +522,8 @@ class GroupValidator(Validator):
                                  f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
+            if attribute == 'target':
+                continue
             parsed = False
             if attribute in self.valid_attributes:
                 self.log(
@@ -529,7 +551,7 @@ class GroupValidator(Validator):
         self.reset_symbols()
         for entry in group.entries: 
             item = group.entries[entry]
-            if item.nxclass == 'NXfield':
+            if item.nxclass == 'NXfield' or item.nxclass == 'NXlink':
                 if entry in self.valid_fields:
                     tag = self.valid_fields[entry]
                 else:
@@ -669,7 +691,7 @@ class FieldValidator(Validator):
                     else:
                         self.log(f'The field has size {field.shape}, '
                                  f'should be {s}', level='error')
-
+    
     def check_enumeration(self, field, enumerations):
         """
         Checks if a field's value is a valid member of an enumerated list.
@@ -789,6 +811,10 @@ class FieldValidator(Validator):
         self.indent += 1
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
+        if isinstance(field, NXlink):
+            if not self.is_valid_link(field):
+                self.output_log()
+                return
         if minOccurs is not None:
             if minOccurs > 0:
                 self.log('This is a required field in the NeXus file')
