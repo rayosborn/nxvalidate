@@ -370,7 +370,7 @@ class GroupValidator(Validator):
                          level='error')
                 signal = None
         else:
-            self.log(f'"@signal" is not present in the group', level='error')
+            self.log('"@signal" is not present in the group', level='error')
             signal = None
         if 'axes' in group.attrs:
             axes = readaxes(group.attrs['axes'])
@@ -397,7 +397,7 @@ class GroupValidator(Validator):
                     self.log(f'Axis "{axis}" is not present in the group',
                              level='error')
         else:
-            self.log(f'"@axes" is not present in the group', level='error')
+            self.log('"@axes" is not present in the group', level='error')
 
     def reset_symbols(self):
         """
@@ -613,13 +613,13 @@ class FieldValidator(Validator):
             if is_valid_posint(field.dtype):
                 self.log('The field value is a valid NX_POSINT')
             else:
-                self.log(f'The field value is not a valid NX_POSINT',
+                self.log('The field value is not a valid NX_POSINT',
                          level='warning')    
         elif dtype == 'NX_UINT':
             if is_valid_uint(field.dtype):
-                self.log(f'The field value is a valid NX_UINT')
+                self.log('The field value is a valid NX_UINT')
             else:
-                self.log(f'The field value is not a valid NX_UINT',
+                self.log('The field value is not a valid NX_UINT',
                          level='warning')        
 
     def check_dimensions(self, field, dimensions):
@@ -683,10 +683,10 @@ class FieldValidator(Validator):
         """
         if field.nxvalue in enumerations:
             self.log(
-                f'The field value is a member of the enumerated list')
+                'The field value is a member of the enumerated list')
         else:
             self.log(
-                f'The field value is not a member of the enumerated list',
+                'The field value is not a member of the enumerated list',
                 level='error') 
 
     def check_attributes(self, field, attributes=None, units=None):
@@ -703,10 +703,10 @@ class FieldValidator(Validator):
         """
         if 'signal' in field.attrs:
             self.log(
-                f'Using "signal" as a field attribute is no longer valid. '
+                'Using "signal" as a field attribute is no longer valid. '
                 'Use the group attribute "signal"', level='error')
         elif 'axis' in field.attrs:
-            self.log(f'Using "axis" as a field attribute is no longer valid. '
+            self.log('Using "axis" as a field attribute is no longer valid. '
                      'Use the group attribute "axes"', level='error')
         if 'units' in field.attrs:
             if units:
@@ -791,9 +791,9 @@ class FieldValidator(Validator):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
         if minOccurs is not None:
             if minOccurs > 0:
-                self.log(f'This is a required field in the NeXus file')
+                self.log('This is a required field in the NeXus file')
             else:
-                self.log(f'This is an optional field in the NeXus file')
+                self.log('This is an optional field in the NeXus file')
         elif tag is not None:
             if '@name' in tag:
                 self.log(f'This field name matches "{tag["@name"]}", '
@@ -1040,7 +1040,7 @@ class ApplicationValidator(Validator):
                             'are required', level='error')
                     elif minOccurs == 0:
                         self.log(
-                            f'This optional group is not in the NeXus file')
+                            'This optional group is not in the NeXus file')
                     for nxsubgroup in nxgroups:
                         if name:
                             self.validate_group(value[name], nxsubgroup,
@@ -1069,12 +1069,11 @@ class ApplicationValidator(Validator):
                         self.indent += 1
                         if minOccurs > 0:
                             self.log(
-                                f'This required field is not '
-                                'in the NeXus file', level='error')
+                                'This required field is not in the NeXus file',
+                                level='error')
                         else:
                             self.log(
-                                f'This optional field is not '
-                                'in the NeXus file')
+                                'This optional field is not in the NeXus file')
                         self.indent -= 1
                     self.output_log()
         group_validator.check_symbols(indent=level)
