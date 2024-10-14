@@ -14,12 +14,12 @@ from pathlib import Path
 from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
                                NXsubentry, nxopen)
 
-from .utils import (ColorFormatter, check_dimension_sizes, is_valid_bool,
-                    is_valid_char, is_valid_char_or_number, is_valid_complex,
-                    is_valid_float, is_valid_int, is_valid_iso8601,
-                    is_valid_name, is_valid_number, is_valid_posint,
-                    is_valid_uint, match_strings, merge_dicts, package_files,
-                    readaxes, strip_namespace, xml_to_dict)
+from .utils import (ColorFormatter, check_dimension_sizes, check_nametype,
+                    is_valid_bool, is_valid_char, is_valid_char_or_number,
+                    is_valid_complex, is_valid_float, is_valid_int,
+                    is_valid_iso8601, is_valid_name, is_valid_number,
+                    is_valid_posint, is_valid_uint, match_strings, merge_dicts,
+                    package_files, readaxes, strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -293,15 +293,18 @@ class GroupValidator(Validator):
                 return
             fields = self.xml_dict['field']
             for field in fields:
-                if '@nameType' in fields[field]:
-                    if fields[field]['@nameType'] == 'any':
-                        valid_fields[field] = fields[field]
-                        self.ignoreExtraFields = True
-                    elif fields[field]['@nameType'] == 'partial':
-                        partial_fields[field] = fields[field]
-                        partial_fields[field]['@name'] = field
-                else:
+                nameType = check_nametype(fields[field])
+                if nameType  == 'any':
                     valid_fields[field] = fields[field]
+                    self.ignoreExtraFields = True
+                elif nameType == 'partial':
+                    partial_fields[field] = fields[field]
+                    partial_fields[field]['@name'] = field
+                elif nameType == 'specified':
+                    valid_fields[field] = fields[field]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
 
         self.valid_fields = valid_fields
         self.partial_fields = partial_fields    
@@ -325,15 +328,18 @@ class GroupValidator(Validator):
                 return
             groups = self.xml_dict['group']
             for group in groups:
-                if '@nameType' in groups[group]:
-                    if groups[group]['@nameType'] == 'any':
-                        valid_groups[group] = groups[group]
-                        self.ignoreExtraGroups = True
-                    elif groups[group]['@nameType'] == 'partial':
-                        partial_groups[group] = groups[group]
-                        partial_groups[group]['@name'] = group
-                else:
+                nameType = check_nametype(groups[group])
+                if nameType =='any':
                     valid_groups[group] = groups[group]
+                    self.ignoreExtraGroups = True
+                elif nameType == 'partial':
+                    partial_groups[group] = groups[group]
+                    partial_groups[group]['@name'] = group
+                elif nameType == 'specified':
+                    valid_groups[group] = groups[group]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
         self.valid_groups = valid_groups
         self.partial_groups = partial_groups
     
@@ -356,15 +362,18 @@ class GroupValidator(Validator):
                 return
             attributes = self.xml_dict['attribute']
             for attribute in attributes:
-                if '@nameType' in attributes[attribute]:
-                    if attributes[attribute]['@nameType'] == 'any':
-                        valid_attributes[attribute] = attributes[attribute]
-                        self.ignoreExtraAttributes = True
-                    elif attributes[attribute]['@nameType'] == 'partial':
-                        partial_attributes[attribute] = attributes[attribute]
-                        partial_attributes[attribute]['@name'] = attribute
-                else:
+                nameType = check_nametype(attributes[attribute])
+                if nameType == 'any':
                     valid_attributes[attribute] = attributes[attribute]
+                    self.ignoreExtraAttributes = True
+                elif nameType == 'partial':
+                    partial_attributes[attribute] = attributes[attribute]
+                    partial_attributes[attribute]['@name'] = attribute
+                elif nameType == 'specified':
+                    valid_attributes[attribute] = attributes[attribute]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
 
@@ -388,7 +397,7 @@ class GroupValidator(Validator):
                 signal_field = group[signal]
             else:
                 self.log(f'Signal "{signal}" is not present in the group',
-                         level='error')
+                         level='warning')
                 signal = None
         else:
             self.log('"@signal" is not present in the group', level='error')
@@ -418,7 +427,7 @@ class GroupValidator(Validator):
                     self.log(f'Axis "{axis}" is not present in the group',
                              level='error')
         else:
-            self.log('"@axes" is not present in the group', level='error')
+            self.log('"@axes" is not present in the group', level='warning')
 
     def reset_symbols(self):
         """

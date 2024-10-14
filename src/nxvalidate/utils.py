@@ -404,6 +404,13 @@ def match_strings(pattern_string, target_string):
     return False
 
 
+def check_nametype(item_value):
+    if '@nameType' in item_value:
+        return item_value['@nameType']
+    else:
+        return 'specified'
+
+
 def check_dimension_sizes(dimensions):
     """
     Check if a list of values are all within one of each other.
