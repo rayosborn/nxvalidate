@@ -31,9 +31,11 @@
 	</doc>
     <group type="NXcollection" />
     <group type="NXdata" />
+    <group type="NXgeometry" />
     <group type="NXlog" />
     <group type="NXnote" />
     <group type="NXparameters" />
+    <group type="NXtransformations" />
     <group name="GROUPNAME_log" type="NXlog" nameType="partial" />
     <field name="FIELDNAME_errors" type="NX_NUMBER" nameType="partial" />
     <field name="FIELDNAME_weights" type="NX_NUMBER" nameType="partial" />
