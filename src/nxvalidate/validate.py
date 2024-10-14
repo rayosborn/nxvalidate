@@ -11,14 +11,15 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from nexusformat.nexus import NeXusError, NXentry, NXgroup, NXsubentry, nxopen
+from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
+                               NXsubentry, nxopen)
 
-from .utils import (ColorFormatter, check_dimension_sizes, is_valid_bool,
-                    is_valid_char, is_valid_char_or_number, is_valid_complex,
-                    is_valid_float, is_valid_int, is_valid_iso8601,
-                    is_valid_name, is_valid_number, is_valid_posint,
-                    is_valid_uint, match_strings, merge_dicts, package_files,
-                    readaxes, strip_namespace, xml_to_dict)
+from .utils import (ColorFormatter, check_dimension_sizes, check_nametype,
+                    is_valid_bool, is_valid_char, is_valid_char_or_number,
+                    is_valid_complex, is_valid_float, is_valid_int,
+                    is_valid_iso8601, is_valid_name, is_valid_number,
+                    is_valid_posint, is_valid_uint, match_strings, merge_dicts,
+                    package_files, readaxes, strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -131,6 +132,21 @@ class Validator():
         except Exception:
             return {}
 
+    def is_valid_link(self, item):
+        if item.is_external():
+            target = f'{item._filename}[{item._target}]'
+        else:
+            target = item._target
+        if item.exists():
+            if isinstance(item, NXfield):
+                self.log(f'This field is linked to "{target}"', level='info')
+            elif isinstance(item, NXgroup):
+                self.log(f'This group is linked to "{target}"', level='info')
+            return True
+        else:
+            self.log(f'This is a broken link to "{target}"', level='error')
+            return False
+
     def log(self, message, level='info', indent=None):
         """
         Logs a message with a specified level and indentation.
@@ -169,8 +185,12 @@ class Validator():
                 or (logger.level == logging.ERROR and error == 0)):
             self.logged_messages = []
             return
-        for message, level, indent in self.logged_messages:
-            log(message, level=level, indent=indent)
+        if self.parent is None:
+            for message, level, indent in self.logged_messages:
+                log(message, level=level, indent=indent)
+        else:
+            for message, level, indent in self.logged_messages:
+                self.parent.logged_messages.append((message, level, indent))
         self.logged_messages = []
 
 
@@ -192,6 +212,7 @@ class GroupValidator(Validator):
             self.get_valid_fields()
             self.get_valid_groups()
             self.get_valid_attributes()
+        self.parent = None
 
     def get_xml_dict(self):
         """
@@ -272,15 +293,18 @@ class GroupValidator(Validator):
                 return
             fields = self.xml_dict['field']
             for field in fields:
-                if '@nameType' in fields[field]:
-                    if fields[field]['@nameType'] == 'any':
-                        valid_fields[field] = fields[field]
-                        self.ignoreExtraFields = True
-                    elif fields[field]['@nameType'] == 'partial':
-                        partial_fields[field] = fields[field]
-                        partial_fields[field]['@name'] = field
-                else:
+                nameType = check_nametype(fields[field])
+                if nameType  == 'any':
                     valid_fields[field] = fields[field]
+                    self.ignoreExtraFields = True
+                elif nameType == 'partial':
+                    partial_fields[field] = fields[field]
+                    partial_fields[field]['@name'] = field
+                elif nameType == 'specified':
+                    valid_fields[field] = fields[field]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
 
         self.valid_fields = valid_fields
         self.partial_fields = partial_fields    
@@ -304,15 +328,18 @@ class GroupValidator(Validator):
                 return
             groups = self.xml_dict['group']
             for group in groups:
-                if '@nameType' in groups[group]:
-                    if groups[group]['@nameType'] == 'any':
-                        valid_groups[group] = groups[group]
-                        self.ignoreExtraGroups = True
-                    elif groups[group]['@nameType'] == 'partial':
-                        partial_groups[group] = groups[group]
-                        partial_groups[group]['@name'] = group
-                else:
+                nameType = check_nametype(groups[group])
+                if nameType =='any':
                     valid_groups[group] = groups[group]
+                    self.ignoreExtraGroups = True
+                elif nameType == 'partial':
+                    partial_groups[group] = groups[group]
+                    partial_groups[group]['@name'] = group
+                elif nameType == 'specified':
+                    valid_groups[group] = groups[group]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
         self.valid_groups = valid_groups
         self.partial_groups = partial_groups
     
@@ -335,15 +362,18 @@ class GroupValidator(Validator):
                 return
             attributes = self.xml_dict['attribute']
             for attribute in attributes:
-                if '@nameType' in attributes[attribute]:
-                    if attributes[attribute]['@nameType'] == 'any':
-                        valid_attributes[attribute] = attributes[attribute]
-                        self.ignoreExtraAttributes = True
-                    elif attributes[attribute]['@nameType'] == 'partial':
-                        partial_attributes[attribute] = attributes[attribute]
-                        partial_attributes[attribute]['@name'] = attribute
-                else:
+                nameType = check_nametype(attributes[attribute])
+                if nameType == 'any':
                     valid_attributes[attribute] = attributes[attribute]
+                    self.ignoreExtraAttributes = True
+                elif nameType == 'partial':
+                    partial_attributes[attribute] = attributes[attribute]
+                    partial_attributes[attribute]['@name'] = attribute
+                elif nameType == 'specified':
+                    valid_attributes[attribute] = attributes[attribute]
+                else:
+                    self.log(f'The NXDL file uses an invalid name type '
+                             f'"{nameType}"', level='error')
         self.valid_attributes = valid_attributes
         self.partial_attributes = partial_attributes
 
@@ -367,7 +397,7 @@ class GroupValidator(Validator):
                 signal_field = group[signal]
             else:
                 self.log(f'Signal "{signal}" is not present in the group',
-                         level='error')
+                         level='warning')
                 signal = None
         else:
             self.log('"@signal" is not present in the group', level='error')
@@ -397,7 +427,7 @@ class GroupValidator(Validator):
                     self.log(f'Axis "{axis}" is not present in the group',
                              level='error')
         else:
-            self.log('"@axes" is not present in the group', level='error')
+            self.log('"@axes" is not present in the group', level='warning')
 
     def reset_symbols(self):
         """
@@ -466,6 +496,10 @@ class GroupValidator(Validator):
         self.indent += 1
         if not is_valid_name(group.nxname):
             self.log(f'"{group.nxname}" is an invalid name', level='error')
+        if isinstance(group, NXlink):
+            if not self.is_valid_link(group):
+                self.output_log()
+                return
         if not self.valid_class:
             self.log(f'{group.nxclass} is not a valid base class',
                      level='error')
@@ -502,6 +536,8 @@ class GroupValidator(Validator):
                                  f'{parent.nxclass}', level='error')
 
         for attribute in group.attrs:
+            if attribute == 'target':
+                continue
             parsed = False
             if attribute in self.valid_attributes:
                 self.log(
@@ -529,7 +565,7 @@ class GroupValidator(Validator):
         self.reset_symbols()
         for entry in group.entries: 
             item = group.entries[entry]
-            if item.nxclass == 'NXfield':
+            if item.nxclass == 'NXfield' or item.nxclass == 'NXlink':
                 if entry in self.valid_fields:
                     tag = self.valid_fields[entry]
                 else:
@@ -550,6 +586,7 @@ class FieldValidator(Validator):
         Initializes a FieldValidator instance.
         """
         super().__init__()
+        self.parent = None
 
     def check_type(self, field, dtype):
         """
@@ -669,7 +706,7 @@ class FieldValidator(Validator):
                     else:
                         self.log(f'The field has size {field.shape}, '
                                  f'should be {s}', level='error')
-
+    
     def check_enumeration(self, field, enumerations):
         """
         Checks if a field's value is a valid member of an enumerated list.
@@ -738,32 +775,6 @@ class FieldValidator(Validator):
         for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'The attribute "@{attr}" is present')
 
-    def output_log(self):
-        """
-        Outputs the logged messages and resets the log.
-
-        This function iterates over the logged messages, counts the
-        number of messages at each level, and logs each message using
-        the log function. If the logger level is not set to INFO and
-        there are no messages at the WARNING or ERROR level, the
-        function resets the log and returns without logging any
-        messages.
-        """
-        warning = 0
-        error = 0
-        for item in self.logged_messages:
-            if item[1] == 'warning':
-                warning += 1
-            elif item[1] == 'error':
-                error += 1
-        if ((logger.level == logging.WARNING and warning == 0 and error == 0)
-                or (logger.level == logging.ERROR and error == 0)):
-            self.logged_messages = []
-            return
-        for message, level, indent in self.logged_messages:
-            self.parent.logged_messages.append((message, level, indent))
-        self.logged_messages = []
-
     def validate(self, tag, field, parent=None, indent=1, minOccurs=None):
         """
         Validates a field in a NeXus group.
@@ -789,6 +800,10 @@ class FieldValidator(Validator):
         self.indent += 1
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
+        if isinstance(field, NXlink):
+            if not self.is_valid_link(field):
+                self.output_log()
+                return
         if minOccurs is not None:
             if minOccurs > 0:
                 self.log('This is a required field in the NeXus file')
@@ -947,6 +962,7 @@ class ApplicationValidator(Validator):
         super().__init__(definitions=definitions)
         self.symbols = {}
         self.xml_dict = self.load_application(application)
+        self.parent = None
         
     def load_application(self, application):
         """
@@ -1017,6 +1033,7 @@ class ApplicationValidator(Validator):
         self.indent = level
         group_validator = get_validator(nxgroup.nxclass,
                                         definitions=self.definitions)
+        group_validator.parent = self
         for key, value in xml_dict.items():
             if key == 'group':
                 for group in value:
@@ -1027,12 +1044,16 @@ class ApplicationValidator(Validator):
                     if '@type' in value[group]:
                         name = group
                         group = value[group]['@type']
-                        self.log(f'Group: {name}: {group}', level='all')
+                        self.log(f'Group: {name}: {group}', level='all',
+                                 indent=level)
+                        nxgroups = [g for g in nxgroup.component(group)
+                                    if g.nxname == name]
                     else:
                         name = None
-                        self.log(f'Group: {group}', level='all')
+                        self.log(f'Group: {group}', level='all',
+                                 indent=level)
+                        nxgroups = nxgroup.component(group)
                     self.indent += 1
-                    nxgroups = nxgroup.component(group)
                     if len(nxgroups) < minOccurs:
                         self.log(
                             f'{len(nxgroups)} {group} group(s) '
@@ -1041,16 +1062,22 @@ class ApplicationValidator(Validator):
                     elif minOccurs == 0:
                         self.log(
                             'This optional group is not in the NeXus file')
-                    for nxsubgroup in nxgroups:
+                    for i, nxsubgroup in enumerate(nxgroups):
                         if name:
+                            if i != 0:
+                                self.log(f'Group: {name}: {group}',
+                                         level='all', indent=level)
                             self.validate_group(value[name], nxsubgroup,
                                                 level=level+1)
                         else:
+                            if i != 0:
+                                self.log(f'Group: {group}', level='all',
+                                         indent=level)
                             self.validate_group(value[group], nxsubgroup,
                                                 level=level+1)
                     self.indent -= 1
-                    self.output_log()
-            elif key == 'field':
+                self.output_log()
+            elif key == 'field' or key == 'link':
                 for field in value:
                     if '@minOccurs' in value[field]:
                         minOccurs = int(value[field]['@minOccurs'])
@@ -1060,9 +1087,8 @@ class ApplicationValidator(Validator):
                         group_validator.symbols.update(self.symbols)
                         field_validator.validate(
                             value[field], nxgroup[field],
-                            parent=group_validator, minOccurs=minOccurs,
+                            parent=self, minOccurs=minOccurs,
                             indent=self.indent-1)
-                        group_validator.output_log()
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'Field: {field_path}', level='all')
@@ -1075,7 +1101,7 @@ class ApplicationValidator(Validator):
                             self.log(
                                 'This optional field is not in the NeXus file')
                         self.indent -= 1
-                    self.output_log()
+                self.output_log()
         group_validator.check_symbols(indent=level)
         self.output_log()
     
