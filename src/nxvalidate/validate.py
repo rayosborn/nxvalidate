@@ -85,10 +85,9 @@ class Validator():
             elif isinstance(definitions, Path):
                 self.definitions = definitions.resolve()
             else:
-                self.definitions = definitions.joinpath('')
+                self.definitions = definitions
         else:
-            self.definitions = package_files(
-                'nxvalidate.definitions').joinpath('')
+            self.definitions = package_files('nxvalidate.definitions')
         self.baseclasses = self.definitions / 'base_classes'
         if not self.baseclasses.exists():
             raise NeXusError(f'"{self.baseclasses}" does not exist')
