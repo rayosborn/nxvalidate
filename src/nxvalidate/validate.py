@@ -775,7 +775,8 @@ class FieldValidator(Validator):
         for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'The attribute "@{attr}" is present')
 
-    def validate(self, tag, field, parent=None, indent=1, minOccurs=None):
+    def validate(self, tag, field, parent=None, minOccurs=None, link=False,
+                 indent=1):
         """
         Validates a field in a NeXus group.
 
@@ -787,6 +788,10 @@ class FieldValidator(Validator):
             The field to be validated.
         parent : object, optional
             The parent object. Defaults to None.
+        minOccurs : int, optional
+            The minimum number of occurrences. Defaults to None.
+        link : bool, optional
+            True if the field is required to be a link. Defaults to False.
         indent : int, optional
             The indentation level. Defaults to 1.
         """
@@ -796,10 +801,15 @@ class FieldValidator(Validator):
             self.parent = self
         group = field.nxgroup
         self.indent = indent + 1
-        self.log(f'Field: {field.nxpath}', level='all')
+        if isinstance(field, NXlink):
+            self.log(f'Link: {field.nxpath}', level='all')
+        else:
+            self.log(f'Field: {field.nxpath}', level='all')
         self.indent += 1
         if not is_valid_name(field.nxname):
             self.log(f'"{field.nxname}" is an invalid name', level='error')
+        if link and not isinstance(field, NXlink):
+            self.log('This field is not a link as required', level='error')
         if isinstance(field, NXlink):
             if not self.is_valid_link(field):
                 self.output_log()
@@ -1086,20 +1096,20 @@ class ApplicationValidator(Validator):
                     if field in nxgroup.entries:
                         group_validator.symbols.update(self.symbols)
                         field_validator.validate(
-                            value[field], nxgroup[field],
+                            value[field], nxgroup[field], link=(key=='link'),
                             parent=self, minOccurs=minOccurs,
                             indent=self.indent-1)
                     else:
                         field_path = nxgroup.nxpath + '/' + field
-                        self.log(f'Field: {field_path}', level='all')
+                        self.log(f'{key.capitalize()}: {field_path}',
+                                 level='all')
                         self.indent += 1
                         if minOccurs > 0:
-                            self.log(
-                                'This required field is not in the NeXus file',
-                                level='error')
+                            self.log(f'This required {key} is not '
+                                     'in the NeXus file', level='error')
                         else:
-                            self.log(
-                                'This optional field is not in the NeXus file')
+                            self.log(f'This optional {key}) is not '
+                                     'in the NeXus file')
                         self.indent -= 1
                 self.output_log()
         group_validator.check_symbols(indent=level)
