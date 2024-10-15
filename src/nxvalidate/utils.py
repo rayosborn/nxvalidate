@@ -405,6 +405,19 @@ def match_strings(pattern_string, target_string):
 
 
 def check_nametype(item_value):
+    """
+    Return the value of the 'nameType' attribute for a given item.
+
+    Parameters
+    ----------
+    item_value : dict
+        The dictionary representation of the item.
+
+    Returns
+    -------
+    str
+        The value of the 'nameType' attribute.
+    """
     if '@nameType' in item_value:
         return item_value['@nameType']
     else:
