@@ -6,13 +6,14 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import os
 import re
 import sys
 
 if sys.version_info < (3, 10):
-    from importlib_resources import files as package_files
+    from importlib_resources import files
 else:
-    from importlib.resources import files as package_files
+    from importlib.resources import files
 
 import numpy as np
 from dateutil.parser import parse
@@ -445,6 +446,27 @@ def check_dimension_sizes(dimensions):
     min_dimension = min(dimensions)
     max_dimension = max(dimensions)
     return max_dimension - min_dimension <= 1
+
+
+class StreamHandler(logging.StreamHandler):
+
+    def __init__(self, stream=None, max_width=None):
+        super().__init__(stream)
+        if max_width is None:
+            self.max_width = os.get_terminal_size().columns - 3
+        else:
+            self.max_width = max_width
+        self.terminator = '\n'
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            truncated_msg = msg[:self.max_width]
+            stream = self.stream
+            stream.write(truncated_msg + self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
 
 
 class ColorFormatter(logging.Formatter):
