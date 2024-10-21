@@ -11,9 +11,9 @@ import re
 import sys
 
 if sys.version_info < (3, 10):
-    from importlib_resources import package_files
+    from importlib_resources import files as package_files
 else:
-    from importlib.resources import package_files
+    from importlib.resources import files as package_files
 
 import numpy as np
 from dateutil.parser import parse
