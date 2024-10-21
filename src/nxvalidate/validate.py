@@ -14,12 +14,12 @@ from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
                                NXsubentry, nxopen)
 
 from .utils import (ColorFormatter, StreamHandler, check_dimension_sizes,
-                    check_nametype, files, is_valid_bool, is_valid_char,
+                    check_nametype, is_valid_bool, is_valid_char,
                     is_valid_char_or_number, is_valid_complex, is_valid_float,
                     is_valid_int, is_valid_iso8601, is_valid_name,
                     is_valid_number, is_valid_posint, is_valid_uint,
-                    match_strings, merge_dicts, readaxes, strip_namespace,
-                    xml_to_dict)
+                    match_strings, merge_dicts, package_files, readaxes,
+                    strip_namespace, xml_to_dict)
 
 
 def get_logger():
