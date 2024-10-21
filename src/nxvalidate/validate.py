@@ -6,7 +6,6 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
-import os
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -14,12 +13,13 @@ from pathlib import Path
 from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
                                NXsubentry, nxopen)
 
-from .utils import (ColorFormatter, check_dimension_sizes, check_nametype,
-                    is_valid_bool, is_valid_char, is_valid_char_or_number,
-                    is_valid_complex, is_valid_float, is_valid_int,
-                    is_valid_iso8601, is_valid_name, is_valid_number,
-                    is_valid_posint, is_valid_uint, match_strings, merge_dicts,
-                    package_files, readaxes, strip_namespace, xml_to_dict)
+from .utils import (ColorFormatter, StreamHandler, check_dimension_sizes,
+                    check_nametype, is_valid_bool, is_valid_char,
+                    is_valid_char_or_number, is_valid_complex, is_valid_float,
+                    is_valid_int, is_valid_iso8601, is_valid_name,
+                    is_valid_number, is_valid_posint, is_valid_uint,
+                    match_strings, merge_dicts, package_files, readaxes,
+                    strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -34,7 +34,7 @@ def get_logger():
         A logger instance.
     """
     logger = logging.getLogger("NXValidate")
-    stream_handler = logging.StreamHandler(stream=sys.stdout)
+    stream_handler = StreamHandler(stream=sys.stdout)
     stream_handler.setFormatter(ColorFormatter('%(message)s'))    
     logger.addHandler(stream_handler)
     logger.setLevel(logging.WARNING)
@@ -1239,7 +1239,7 @@ def inspect_base_class(base_class, definitions=None):
                 log(f"{tag}: {tags[tag]}", indent=2)
 
 
-def log(message, level='info', indent=0, width=None):
+def log(message, level='info', indent=0):
     """
     Logs a message at a specified level with optional indentation.
 
@@ -1252,13 +1252,6 @@ def log(message, level='info', indent=0, width=None):
     indent : int, optional
         The number of spaces to indent the log message (default is 0).
     """
-    if width is None:
-        width = os.get_terminal_size().columns
-    if len(message) + 4*indent > width:
-        if message.endswith('\n'):
-            message = message[:width - 4*indent - 3] + '...' + '\n'
-        else:
-            message = message[:width - 4*indent - 3] + '...'
     if level == 'info':
         logger.info(f'{4*indent*" "}{message}')
     elif level == 'debug':
