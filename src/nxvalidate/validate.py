@@ -98,6 +98,7 @@ class Validator():
         if not self.contributions.exists():
             self.contributions = None
         self.filepath = None
+        self.parent = None
         self.logged_messages = []
         self.indent = 0
 
@@ -173,23 +174,23 @@ class Validator():
         and there are no messages at that level, the function resets the
         log and returns without logging any messages.
         """
-        warning = 0
-        error = 0
-        for item in self.logged_messages:
-            if item[1] == 'warning':
-                warning += 1
-            elif item[1] == 'error':
-                error += 1
-        if ((logger.level == logging.WARNING and warning == 0 and error == 0)
-                or (logger.level == logging.ERROR and error == 0)):
-            self.logged_messages = []
-            return
         if self.parent is None:
+            logged_messages = []
             for message, level, indent in self.logged_messages:
-                log(message, level=level, indent=indent)
+                if level == 'all':
+                    if len(logged_messages) > 0:
+                        for m, l, i in logged_messages:
+                            log(m, level=l, indent=i)
+                    logged_messages =[(message, level, indent)]
+                elif logger.level == logging.INFO:
+                    logged_messages.append((message, level, indent))
+                elif (logger.level == logging.WARNING and
+                        (level == 'warning' or level == 'error')):
+                    logged_messages.append((message, level, indent))
+                elif logger.level  == logging.ERROR and level == 'error':
+                    logged_messages.append((message, level, indent))
         else:
-            for message, level, indent in self.logged_messages:
-                self.parent.logged_messages.append((message, level, indent))
+            self.parent.logged_messages.extend(self.logged_messages)
         self.logged_messages = []
 
 
@@ -211,7 +212,6 @@ class GroupValidator(Validator):
             self.get_valid_fields()
             self.get_valid_groups()
             self.get_valid_attributes()
-        self.parent = None
 
     def get_xml_dict(self):
         """
@@ -476,7 +476,7 @@ class GroupValidator(Validator):
                              level='error')
                 self.indent -= 1
             
-    def validate(self, group, indent=0): 
+    def validate(self, group, parent=None, indent=0): 
         """
         Validates a given group against the NeXus standard.
 
@@ -490,6 +490,7 @@ class GroupValidator(Validator):
         indent : int, optional
             The indentation level for logging (default is 0).
         """
+        self.parent = parent
         self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
@@ -573,7 +574,8 @@ class GroupValidator(Validator):
                         if match_strings(partial_name, entry):
                             tag = self.partial_fields[partial_name]
                             break
-                field_validator.validate(tag, item, parent=self, indent=indent)
+                field_validator.validate(tag, item, validator=self,
+                                         parent=self.parent, indent=indent)
         self.check_symbols()
         self.output_log()
                 
@@ -585,7 +587,6 @@ class FieldValidator(Validator):
         Initializes a FieldValidator instance.
         """
         super().__init__()
-        self.parent = None
 
     def check_type(self, field, dtype):
         """
@@ -672,8 +673,8 @@ class FieldValidator(Validator):
         """
         if 'rank' in dimensions:
             rank = dimensions['rank']
-            if rank in self.parent.symbols:
-                self.parent.symbols[rank].update({field.nxname: field.ndim})
+            if rank in self.validator.symbols:
+                self.validator.symbols[rank].update({field.nxname: field.ndim})
             else:
                 try:
                     rank = int(dimensions['rank'])
@@ -686,9 +687,9 @@ class FieldValidator(Validator):
                              f'should be {rank}', level='error')
         if 'dim' in dimensions:
             for i, s in dimensions['dim'].items():
-                if s in self.parent.symbols:
+                if s in self.validator.symbols:
                     if len(field.shape) > i-1:
-                        self.parent.symbols[s].update(
+                        self.validator.symbols[s].update(
                             {field.nxname: field.shape[i-1]})
                     else:
                         self.log(
@@ -774,8 +775,8 @@ class FieldValidator(Validator):
         for attr in [a for a in field.attrs if a not in checked_attributes]:
             self.log(f'The attribute "@{attr}" is present')
 
-    def validate(self, tag, field, parent=None, minOccurs=None, link=False,
-                 indent=1):
+    def validate(self, tag, field, validator=None, parent=None, minOccurs=None,
+                 link=False, indent=1):
         """
         Validates a field in a NeXus group.
 
@@ -794,10 +795,8 @@ class FieldValidator(Validator):
         indent : int, optional
             The indentation level. Defaults to 1.
         """
-        if parent:
-            self.parent = parent
-        else:
-            self.parent = self
+        self.parent = parent
+        self.validator = validator
         group = field.nxgroup
         self.indent = indent + 1
         if isinstance(field, NXlink):
@@ -825,7 +824,7 @@ class FieldValidator(Validator):
             else:
                 self.log(f'This is a valid field in {group.nxclass}')
         if tag is None:
-            if self.parent.ignoreExtraFields is True:
+            if self.validator and self.validator.ignoreExtraFields is True:
                 self.log(f'This field is not defined in {group.nxclass} '
                          'groups, but additional fields are allowed')
             else:
@@ -923,7 +922,8 @@ class FileValidator(Validator):
                 if isinstance(item, NXgroup):
                     validator = get_validator(item.nxclass,
                                               definitions=self.definitions)
-                    validator.validate(item, indent=indent)
+                    validator.validate(item, parent=self, indent=indent)
+        self.output_log()
 
 
 def validate_file(filename, path=None, definitions=None):
@@ -971,7 +971,6 @@ class ApplicationValidator(Validator):
         super().__init__(definitions=definitions)
         self.symbols = {}
         self.xml_dict = self.load_application(application)
-        self.parent = None
         
     def load_application(self, application):
         """
@@ -1020,7 +1019,7 @@ class ApplicationValidator(Validator):
         self.filepath = app_path.resolve()
         return xml_dict
 
-    def validate_group(self, xml_dict, nxgroup, level=0):
+    def validate_group(self, xml_dict, nxgroup, parent=None, level=0):
         """
         Validates a NeXus group against an XML definition.
 
@@ -1077,15 +1076,16 @@ class ApplicationValidator(Validator):
                                 self.log(f'Group: {name}: {group}',
                                          level='all', indent=level)
                             self.validate_group(value[name], nxsubgroup,
+                                                parent=self.parent,
                                                 level=level+1)
                         else:
                             if i != 0:
                                 self.log(f'Group: {group}', level='all',
                                          indent=level)
                             self.validate_group(value[group], nxsubgroup,
+                                                parent=self.parent,
                                                 level=level+1)
                     self.indent -= 1
-                self.output_log()
             elif key == 'field' or key == 'link':
                 for field in value:
                     if '@minOccurs' in value[field]:
@@ -1096,8 +1096,8 @@ class ApplicationValidator(Validator):
                         group_validator.symbols.update(self.symbols)
                         field_validator.validate(
                             value[field], nxgroup[field], link=(key=='link'),
-                            parent=self, minOccurs=minOccurs,
-                            indent=self.indent-1)
+                            validator=group_validator, parent=self,
+                            minOccurs=minOccurs, indent=self.indent-1)
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'{key.capitalize()}: {field_path}',
@@ -1110,7 +1110,6 @@ class ApplicationValidator(Validator):
                             self.log(f'This optional {key}) is not '
                                      'in the NeXus file')
                         self.indent -= 1
-                self.output_log()
         group_validator.check_symbols(indent=level)
         self.output_log()
     
@@ -1132,6 +1131,7 @@ class ApplicationValidator(Validator):
         root = entry.nxroot
         nxpath = entry.nxpath
         self.validate_group(self.xml_dict, root[nxpath])
+        self.output_log()
 
 
 def validate_application(filename, path=None, application=None,
