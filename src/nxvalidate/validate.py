@@ -98,6 +98,7 @@ class Validator():
         if not self.contributions.exists():
             self.contributions = None
         self.filepath = None
+        self.parent = None
         self.logged_messages = []
         self.indent = 0
 
@@ -188,8 +189,7 @@ class Validator():
             for message, level, indent in self.logged_messages:
                 log(message, level=level, indent=indent)
         else:
-            for message, level, indent in self.logged_messages:
-                self.parent.logged_messages.append((message, level, indent))
+            self.parent.logged_messages.extend(self.logged_messages)
         self.logged_messages = []
 
 
@@ -211,7 +211,6 @@ class GroupValidator(Validator):
             self.get_valid_fields()
             self.get_valid_groups()
             self.get_valid_attributes()
-        self.parent = None
 
     def get_xml_dict(self):
         """
@@ -585,7 +584,6 @@ class FieldValidator(Validator):
         Initializes a FieldValidator instance.
         """
         super().__init__()
-        self.parent = None
 
     def check_type(self, field, dtype):
         """
@@ -909,10 +907,6 @@ class FileValidator(Validator):
         path : str, optional
             The path to the group to start validation from (default is
             None, which means the entire file will be validated).
-
-        Returns
-        -------
-        None
         """
         with nxopen(self.filepath) as root:
             if path:
@@ -923,7 +917,8 @@ class FileValidator(Validator):
                 if isinstance(item, NXgroup):
                     validator = get_validator(item.nxclass,
                                               definitions=self.definitions)
-                    validator.validate(item, indent=indent)
+                    validator.validate(item, parent=self, indent=indent)
+        self.output_log()
 
 
 def validate_file(filename, path=None, definitions=None):
@@ -952,8 +947,13 @@ def validate_file(filename, path=None, definitions=None):
 
     validator.validate(path)
 
-    log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
-    log(f'Total number of warnings: {logger.total["warning"]}\n', level='all') 
+    if logger.level <= logging.WARNING:
+        log(f'\nTotal number of warnings: {logger.total["warning"]}',
+            level='all')
+        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
+    else:
+        log(f'\nTotal number of errors: {logger.total["error"]}\n',
+            level='all')
 
 
 
@@ -971,7 +971,6 @@ class ApplicationValidator(Validator):
         super().__init__(definitions=definitions)
         self.symbols = {}
         self.xml_dict = self.load_application(application)
-        self.parent = None
         
     def load_application(self, application):
         """
@@ -1167,15 +1166,20 @@ def validate_application(filename, path=None, application=None,
         validator = ApplicationValidator(application, definitions=definitions)
 
         log("\nNXValidate\n----------", level='all')
-        log(f"Validation of {Path(filename).resolve()}", level='all')
+        log(f"Filename: {Path(filename).resolve()}", level='all')
+        log(f"Entry: {nxpath}", level='all')
         log(f"Application Definition: {application}", level='all')
         log(f"NXDL File: {validator.filepath}\n", level='all')
 
         validator.validate(entry)
 
-        log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
-        log(f'Total number of warnings: {logger.total["warning"]}\n',
-            level='all') 
+    if logger.level <= logging.WARNING:
+        log(f'\nTotal number of warnings: {logger.total["warning"]}',
+            level='all')
+        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
+    else:
+        log(f'\nTotal number of errors: {logger.total["error"]}\n',
+            level='all')
 
 
 def inspect_base_class(base_class, definitions=None):
