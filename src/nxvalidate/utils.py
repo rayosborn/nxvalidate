@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+from pathlib import Path
 
 if sys.version_info < (3, 10):
     from importlib_resources import files as package_files
@@ -18,7 +19,6 @@ else:
 import numpy as np
 from dateutil.parser import parse
 from nexusformat.nexus.tree import string_dtype
-
 
 name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
@@ -403,6 +403,27 @@ def match_strings(pattern_string, target_string):
             return True
     
     return False
+
+
+def definitions_path(path):
+    """
+    Return the path to the NeXus definitions directory.
+
+    The path is derived from a given path, which may be a string or a
+    MultiplexedPath object. If the given path is a MultiplexedPath
+    object, extract the path from it and return it as a string.
+
+    Parameters
+    ----------
+    path : str or MultiplexedPath
+        The path to the NeXus definitions directory.
+
+    Returns
+    -------
+    Path
+        The path to the NeXus definitions directory.
+    """
+    return Path(re.sub(r"MultiplexedPath\('(.*)'\)", r"\1", str(path)))
 
 
 def check_nametype(item_value):
