@@ -14,12 +14,12 @@ from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
                                NXsubentry, nxopen)
 
 from .utils import (ColorFormatter, StreamHandler, check_dimension_sizes,
-                    check_nametype, is_valid_bool, is_valid_char,
-                    is_valid_char_or_number, is_valid_complex, is_valid_float,
-                    is_valid_int, is_valid_iso8601, is_valid_name,
-                    is_valid_number, is_valid_posint, is_valid_uint,
-                    match_strings, merge_dicts, package_files, readaxes,
-                    strip_namespace, xml_to_dict)
+                    check_nametype, definitions_path, is_valid_bool,
+                    is_valid_char, is_valid_char_or_number, is_valid_complex,
+                    is_valid_float, is_valid_int, is_valid_iso8601,
+                    is_valid_name, is_valid_number, is_valid_posint,
+                    is_valid_uint, match_strings, merge_dicts, package_files,
+                    readaxes, strip_namespace, xml_to_dict)
 
 
 def get_logger():
@@ -97,7 +97,9 @@ class Validator():
         self.contributions = self.definitions / 'contributed_definitions'
         if not self.contributions.exists():
             self.contributions = None
+        self.definitions = definitions_path(self.definitions)
         self.filepath = None
+        self.parent = None
         self.logged_messages = []
         self.indent = 0
 
@@ -188,8 +190,7 @@ class Validator():
             for message, level, indent in self.logged_messages:
                 log(message, level=level, indent=indent)
         else:
-            for message, level, indent in self.logged_messages:
-                self.parent.logged_messages.append((message, level, indent))
+            self.parent.logged_messages.extend(self.logged_messages)
         self.logged_messages = []
 
 
@@ -211,7 +212,6 @@ class GroupValidator(Validator):
             self.get_valid_fields()
             self.get_valid_groups()
             self.get_valid_attributes()
-        self.parent = None
 
     def get_xml_dict(self):
         """
@@ -476,7 +476,7 @@ class GroupValidator(Validator):
                              level='error')
                 self.indent -= 1
             
-    def validate(self, group, indent=0): 
+    def validate(self, group, parent=None, indent=0): 
         """
         Validates a given group against the NeXus standard.
 
@@ -490,6 +490,7 @@ class GroupValidator(Validator):
         indent : int, optional
             The indentation level for logging (default is 0).
         """
+        self.parent = parent
         self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
@@ -564,7 +565,7 @@ class GroupValidator(Validator):
         self.reset_symbols()
         for entry in group.entries: 
             item = group.entries[entry]
-            if item.nxclass == 'NXfield' or item.nxclass == 'NXlink':
+            if isinstance(item, NXfield):
                 if entry in self.valid_fields:
                     tag = self.valid_fields[entry]
                 else:
@@ -573,9 +574,15 @@ class GroupValidator(Validator):
                         if match_strings(partial_name, entry):
                             tag = self.partial_fields[partial_name]
                             break
-                field_validator.validate(tag, item, parent=self, indent=indent)
+                field_validator.validate(tag, item, parent=self,
+                                         indent=self.indent)
+            elif isinstance(item, NXgroup):
+                validator = get_validator(item.nxclass,
+                                          definitions=self.definitions)
+                validator.validate(item, parent=self, indent=self.indent)
         self.check_symbols()
         self.output_log()
+        self.indent -= 1
                 
 
 class FieldValidator(Validator):
@@ -585,7 +592,6 @@ class FieldValidator(Validator):
         Initializes a FieldValidator instance.
         """
         super().__init__()
-        self.parent = None
 
     def check_type(self, field, dtype):
         """
@@ -775,7 +781,7 @@ class FieldValidator(Validator):
             self.log(f'The attribute "@{attr}" is present')
 
     def validate(self, tag, field, parent=None, minOccurs=None, link=False,
-                 indent=1):
+                 indent=0):
         """
         Validates a field in a NeXus group.
 
@@ -792,14 +798,11 @@ class FieldValidator(Validator):
         link : bool, optional
             True if the field is required to be a link. Defaults to False.
         indent : int, optional
-            The indentation level. Defaults to 1.
+            The indentation level. Defaults to 0.
         """
-        if parent:
-            self.parent = parent
-        else:
-            self.parent = self
+        self.parent = parent
+        self.indent = indent
         group = field.nxgroup
-        self.indent = indent + 1
         if isinstance(field, NXlink):
             self.log(f'Link: {field.nxpath}', level='all')
         else:
@@ -872,32 +875,6 @@ class FileValidator(Validator):
         super().__init__(definitions=definitions)
         self.filepath = Path(filename).resolve()
 
-    def walk(self, node, indent=0):
-        """
-        Recursively walks through a node and its children.
-        
-        This function yeilds each node and its corresponding indentation
-        level.
-
-        Parameters
-        ----------
-        node : object
-            The node to start walking from.
-        indent : int, optional
-            The current indentation level (default is 0).
-
-        Yields
-        ------
-        tuple
-            A tuple containing the current node and indentation level.
-        """
-        if not isinstance(node, NXgroup):
-            yield node, indent
-        elif node.exists():
-            yield node, indent
-            for child_node in node.entries.values():
-                yield from self.walk(child_node, indent+1)
-
     def validate(self, path=None):
         """
         Validates a NeXus file by walking through its tree structure.
@@ -909,21 +886,19 @@ class FileValidator(Validator):
         path : str, optional
             The path to the group to start validation from (default is
             None, which means the entire file will be validated).
-
-        Returns
-        -------
-        None
         """
         with nxopen(self.filepath) as root:
             if path:
-                parent = root[path]
+                parent_group = root[path]
             else:
-                parent = root
-            for item, indent in self.walk(parent):
-                if isinstance(item, NXgroup):
-                    validator = get_validator(item.nxclass,
-                                              definitions=self.definitions)
-                    validator.validate(item, indent=indent)
+                parent_group = root
+            if not isinstance(parent_group, NXgroup):
+                logger.error(f'{parent_group.nxpath} is not a NeXus group')
+                return
+            validator = get_validator(parent_group.nxclass,
+                                      definitions=self.definitions)
+            validator.validate(parent_group, parent=self)
+        self.output_log()
 
 
 def validate_file(filename, path=None, definitions=None):
@@ -943,17 +918,31 @@ def validate_file(filename, path=None, definitions=None):
     None
     """
     if not Path(filename).exists():
-        raise NeXusError(f'File {filename} does not exist')
-    validator = FileValidator(filename, definitions=definitions)
+        logger.error(f'File "{filename}" does not exist')
+        return
+    if path is None:
+        path = '/'
+
+    try:
+        validator = FileValidator(filename, definitions=definitions)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     log("\nNXValidate\n----------", level='all')
-    log(f"Validation of {Path(filename).resolve()}", level='all')
+    log(f"Filename: {Path(filename).resolve()}", level='all')
+    log(f"Path: {path}", level='all')
     log(f"Definitions: {validator.definitions}\n", level='all')
 
     validator.validate(path)
 
-    log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
-    log(f'Total number of warnings: {logger.total["warning"]}\n', level='all') 
+    if logger.level <= logging.WARNING:
+        log(f'\nTotal number of warnings: {logger.total["warning"]}',
+            level='all')
+        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
+    else:
+        log(f'\nTotal number of errors: {logger.total["error"]}\n',
+            level='all')
 
 
 
@@ -971,7 +960,6 @@ class ApplicationValidator(Validator):
         super().__init__(definitions=definitions)
         self.symbols = {}
         self.xml_dict = self.load_application(application)
-        self.parent = None
         
     def load_application(self, application):
         """
@@ -1002,12 +990,12 @@ class ApplicationValidator(Validator):
             tree = ET.parse(app_path)
         else:
             raise NeXusError(
-                f'The application definition {application} does not exist')
+                f'The application definition "{application}" does not exist')
         xml_root = tree.getroot()
         strip_namespace(xml_root)
         if xml_root.tag != 'definition':
             raise NeXusError(
-                f'The application definition {application}'
+                f'The application definition "{application}"'
                 'does not contain the correct root tag.')
         symbols = xml_root.find('symbols')
         if symbols is not None:
@@ -1020,7 +1008,7 @@ class ApplicationValidator(Validator):
         self.filepath = app_path.resolve()
         return xml_dict
 
-    def validate_group(self, xml_dict, nxgroup, level=0):
+    def validate_group(self, xml_dict, nxgroup, indent=0):
         """
         Validates a NeXus group against an XML definition.
 
@@ -1036,10 +1024,10 @@ class ApplicationValidator(Validator):
             The XML dictionary containing the definition of the group.
         nxgroup : NXgroup
             The NeXus group to be validated.
-        level : int, optional
+        indent : int, optional
             The current indentation level (default is 0).
         """
-        self.indent = level
+        self.indent = indent
         group_validator = get_validator(nxgroup.nxclass,
                                         definitions=self.definitions)
         group_validator.parent = self
@@ -1054,13 +1042,13 @@ class ApplicationValidator(Validator):
                         name = group
                         group = value[group]['@type']
                         self.log(f'Group: {name}: {group}', level='all',
-                                 indent=level)
+                                 indent=self.indent)
                         nxgroups = [g for g in nxgroup.component(group)
                                     if g.nxname == name]
                     else:
                         name = None
                         self.log(f'Group: {group}', level='all',
-                                 indent=level)
+                                 indent=self.indent)
                         nxgroups = nxgroup.component(group)
                     self.indent += 1
                     if len(nxgroups) < minOccurs:
@@ -1075,15 +1063,15 @@ class ApplicationValidator(Validator):
                         if name:
                             if i != 0:
                                 self.log(f'Group: {name}: {group}',
-                                         level='all', indent=level)
-                            self.validate_group(value[name], nxsubgroup,
-                                                level=level+1)
+                                         level='all', indent=self.indent)
+                            self.validate_group(
+                                value[name], nxsubgroup, indent=self.indent)
                         else:
                             if i != 0:
                                 self.log(f'Group: {group}', level='all',
-                                         indent=level)
-                            self.validate_group(value[group], nxsubgroup,
-                                                level=level+1)
+                                         indent=self.indent)
+                            self.validate_group(
+                                value[group], nxsubgroup, indent=self.indent)
                     self.indent -= 1
                 self.output_log()
             elif key == 'field' or key == 'link':
@@ -1097,7 +1085,7 @@ class ApplicationValidator(Validator):
                         field_validator.validate(
                             value[field], nxgroup[field], link=(key=='link'),
                             parent=self, minOccurs=minOccurs,
-                            indent=self.indent-1)
+                            indent=self.indent)
                     else:
                         field_path = nxgroup.nxpath + '/' + field
                         self.log(f'{key.capitalize()}: {field_path}',
@@ -1111,7 +1099,7 @@ class ApplicationValidator(Validator):
                                      'in the NeXus file')
                         self.indent -= 1
                 self.output_log()
-        group_validator.check_symbols(indent=level)
+        group_validator.check_symbols(indent=self.indent)
         self.output_log()
     
     def validate(self, entry):
@@ -1132,6 +1120,7 @@ class ApplicationValidator(Validator):
         root = entry.nxroot
         nxpath = entry.nxpath
         self.validate_group(self.xml_dict, root[nxpath])
+        self.output_log()
 
 
 def validate_application(filename, path=None, application=None,
@@ -1154,28 +1143,38 @@ def validate_application(filename, path=None, application=None,
         else:
             nxpath = path
         entry = root[nxpath]
-        if (not isinstance(entry, NXentry)
-                and not isinstance(entry, NXsubentry)):
-            raise NeXusError(
-                f'Path {nxpath} not a NXentry or NXsubentry group')
+        if not (isinstance(entry, NXentry) or isinstance(entry, NXsubentry)):
+            logger.error(
+                f'Path "{nxpath}" is not a NXentry or NXsubentry group')
+            return
         elif application is None and 'definition' in entry:
             application = entry['definition'].nxvalue
         elif application is None:
-            raise NeXusError(
-                f'No application definition defined in {nxpath}')
+            logger.error(f'No application definition is defined in "{nxpath}"')
+            return
 
-        validator = ApplicationValidator(application, definitions=definitions)
+        try:
+            validator = ApplicationValidator(application,
+                                             definitions=definitions)
+        except NeXusError as e:
+            logger.error(e)
+            return
 
         log("\nNXValidate\n----------", level='all')
-        log(f"Validation of {Path(filename).resolve()}", level='all')
+        log(f"Filename: {Path(filename).resolve()}", level='all')
+        log(f"Entry: {nxpath}", level='all')
         log(f"Application Definition: {application}", level='all')
         log(f"NXDL File: {validator.filepath}\n", level='all')
 
         validator.validate(entry)
 
-        log(f'\nTotal number of errors: {logger.total["error"]}', level='all')
-        log(f'Total number of warnings: {logger.total["warning"]}\n',
-            level='all') 
+    if logger.level <= logging.WARNING:
+        log(f'\nTotal number of warnings: {logger.total["warning"]}',
+            level='all')
+        log(f'Total number of errors: {logger.total["error"]}\n', level='all')
+    else:
+        log(f'\nTotal number of errors: {logger.total["error"]}\n',
+            level='all')
 
 
 def inspect_base_class(base_class, definitions=None):
