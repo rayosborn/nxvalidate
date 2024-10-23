@@ -10,8 +10,6 @@
 import argparse
 import logging
 
-from nexusformat.nexus import NeXusError
-
 import nxvalidate
 from nxvalidate.validate import (logger, inspect_base_class,
                                  validate_application, validate_file)
@@ -74,7 +72,7 @@ def main():
         else:
             validate_file(filename, path=path, definitions=definitions)
     else:
-        raise NeXusError('A file or base class must be specified')
+        logger.error('A file or base class must be specified')
 
 
 if __name__ == "__main__":

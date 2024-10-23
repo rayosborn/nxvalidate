@@ -893,7 +893,8 @@ class FileValidator(Validator):
             else:
                 parent_group = root
             if not isinstance(parent_group, NXgroup):
-                raise NeXusError(f'{parent_group.nxpath} is not a NeXus group')
+                logger.error(f'{parent_group.nxpath} is not a NeXus group')
+                return
             validator = get_validator(parent_group.nxclass,
                                       definitions=self.definitions)
             validator.validate(parent_group, parent=self)
@@ -917,11 +918,20 @@ def validate_file(filename, path=None, definitions=None):
     None
     """
     if not Path(filename).exists():
-        raise NeXusError(f'File {filename} does not exist')
-    validator = FileValidator(filename, definitions=definitions)
+        logger.error(f'File "{filename}" does not exist')
+        return
+    if path is None:
+        path = '/'
+
+    try:
+        validator = FileValidator(filename, definitions=definitions)
+    except NeXusError as e:
+        logger.error(e)
+        return
 
     log("\nNXValidate\n----------", level='all')
-    log(f"Validation of {Path(filename).resolve()}", level='all')
+    log(f"Filename: {Path(filename).resolve()}", level='all')
+    log(f"Path: {path}", level='all')
     log(f"Definitions: {validator.definitions}\n", level='all')
 
     validator.validate(path)
@@ -980,12 +990,12 @@ class ApplicationValidator(Validator):
             tree = ET.parse(app_path)
         else:
             raise NeXusError(
-                f'The application definition {application} does not exist')
+                f'The application definition "{application}" does not exist')
         xml_root = tree.getroot()
         strip_namespace(xml_root)
         if xml_root.tag != 'definition':
             raise NeXusError(
-                f'The application definition {application}'
+                f'The application definition "{application}"'
                 'does not contain the correct root tag.')
         symbols = xml_root.find('symbols')
         if symbols is not None:
@@ -1133,17 +1143,22 @@ def validate_application(filename, path=None, application=None,
         else:
             nxpath = path
         entry = root[nxpath]
-        if (not isinstance(entry, NXentry)
-                and not isinstance(entry, NXsubentry)):
-            raise NeXusError(
-                f'Path {nxpath} not a NXentry or NXsubentry group')
+        if not (isinstance(entry, NXentry) or isinstance(entry, NXsubentry)):
+            logger.error(
+                f'Path "{nxpath}" is not a NXentry or NXsubentry group')
+            return
         elif application is None and 'definition' in entry:
             application = entry['definition'].nxvalue
         elif application is None:
-            raise NeXusError(
-                f'No application definition defined in {nxpath}')
+            logger.error(f'No application definition is defined in "{nxpath}"')
+            return
 
-        validator = ApplicationValidator(application, definitions=definitions)
+        try:
+            validator = ApplicationValidator(application,
+                                             definitions=definitions)
+        except NeXusError as e:
+            logger.error(e)
+            return
 
         log("\nNXValidate\n----------", level='all')
         log(f"Filename: {Path(filename).resolve()}", level='all')
