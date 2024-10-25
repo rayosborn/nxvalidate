@@ -471,11 +471,11 @@ class GroupValidator(Validator):
                 self.indent -= 1
             else:
                 self.log(f'Values for "{symbol}" are not unique',
-                         level='error')
+                         level='warning')
                 self.indent += 1
                 for entry in self.symbols[symbol]:
                     self.log(f'{entry}: {self.symbols[symbol][entry]}',
-                             level='error')
+                             level='warning')
                 self.indent -= 1
             
     def validate(self, group, parent=None, indent=0): 
