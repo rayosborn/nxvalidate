@@ -498,7 +498,7 @@ class GroupValidator(Validator):
         self.indent += 1
 
         if group.nxclass == 'NXgroup':
-            if self.nxclass == 'NXroot':
+            if parent.nxclass == 'NXroot':
                 self.log('This group has no NeXus base class assigned '
                          'and will not be inspected')
             else:
