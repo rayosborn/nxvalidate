@@ -957,6 +957,8 @@ def validate_file(filename, path=None, definitions=None):
     else:
         log(f'\nTotal number of errors: {logger.total["error"]}\n',
             level='all')
+    
+    return (logger.total['warning'], logger.total['error'])
 
 
 
@@ -1189,6 +1191,8 @@ def validate_application(filename, path=None, application=None,
     else:
         log(f'\nTotal number of errors: {logger.total["error"]}\n',
             level='all')
+
+    return (logger.total['warning'], logger.total['error'])
 
 
 def inspect_base_class(base_class, definitions=None):
