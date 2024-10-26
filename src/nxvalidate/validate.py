@@ -207,11 +207,14 @@ class GroupValidator(Validator):
         """
         super().__init__(definitions=definitions)
         self.nxclass = nxclass
-        self.xml_dict = self.get_xml_dict()
-        if self.valid_class:
-            self.get_valid_fields()
-            self.get_valid_groups()
-            self.get_valid_attributes()
+        if self.nxclass is None or self.nxclass == 'NXgroup':
+            self.xml_dict = None
+            self.valid_class = False
+        else:
+            self.xml_dict = self.get_xml_dict()
+        self.get_valid_fields()
+        self.get_valid_groups()
+        self.get_valid_attributes()
 
     def get_xml_dict(self):
         """
@@ -304,7 +307,6 @@ class GroupValidator(Validator):
                 else:
                     self.log(f'The NXDL file uses an invalid name type '
                              f'"{nameType}"', level='error')
-
         self.valid_fields = valid_fields
         self.partial_fields = partial_fields    
 
@@ -469,11 +471,11 @@ class GroupValidator(Validator):
                 self.indent -= 1
             else:
                 self.log(f'Values for "{symbol}" are not unique',
-                         level='error')
+                         level='warning')
                 self.indent += 1
                 for entry in self.symbols[symbol]:
                     self.log(f'{entry}: {self.symbols[symbol][entry]}',
-                             level='error')
+                             level='warning')
                 self.indent -= 1
             
     def validate(self, group, parent=None, indent=0): 
@@ -494,6 +496,17 @@ class GroupValidator(Validator):
         self.indent = indent
         self.log(f'{group.nxclass}: {group.nxpath}', level='all')
         self.indent += 1
+
+        if group.nxclass == 'NXgroup':
+            if self.nxclass == 'NXroot':
+                self.log('This group has no NeXus base class assigned '
+                         'and will not be inspected')
+            else:
+                self.log('This group has no NeXus base class assigned',
+                         level='error')
+            self.output_log()
+            return
+
         if not is_valid_name(group.nxname):
             self.log(f'"{group.nxname}" is an invalid name', level='error')
         if isinstance(group, NXlink):
@@ -505,9 +518,10 @@ class GroupValidator(Validator):
                      level='error')
             self.output_log()
             return
-        parent = group.nxgroup
-        if parent:
-            parent_validator = get_validator(parent.nxclass,
+
+        parent_group = group.nxgroup
+        if parent_group:
+            parent_validator = get_validator(parent_group.nxclass,
                                              definitions=self.definitions)
             parsed = False
             if group.nxname in parent_validator.valid_groups:
@@ -520,20 +534,20 @@ class GroupValidator(Validator):
                 for partial_name in parent_validator.partial_groups:
                     if match_strings(partial_name, group.nxname):
                         self.log(f'This group name matches "{partial_name}", '
-                         f'which is allowed in {parent.nxclass}')
+                         f'which is allowed in {parent_group.nxclass}')
                         parsed = True
             if not parsed:
                 if group.nxclass in parent_validator.valid_groups:
                     self.log('This group is a valid class in '
-                             f'{parent.nxclass}')
+                             f'{parent_group.nxclass}')
                 elif group.nxclass not in parent_validator.valid_groups:
                     if parent_validator.ignoreExtraGroups:
                         self.log(f'{group.nxclass} is not defined in '
-                                 f'{parent.nxclass}. '
+                                 f'{parent_group.nxclass}. '
                                  'Additional classes are allowed.')
                     else:
                         self.log(f'{group.nxclass} is an invalid class in '
-                                 f'{parent.nxclass}', level='error')
+                                 f'{parent_group.nxclass}', level='error')
 
         for attribute in group.attrs:
             if attribute == 'target':
@@ -689,7 +703,7 @@ class FieldValidator(Validator):
                     self.log(f'The field has the correct rank of {rank}')
                 else:
                     self.log(f'The field has rank {field.ndim}, '
-                             f'should be {rank}', level='error')
+                             f'should be {rank}', level='warning')
         if 'dim' in dimensions:
             for i, s in dimensions['dim'].items():
                 if s in self.parent.symbols:
@@ -700,7 +714,7 @@ class FieldValidator(Validator):
                         self.log(
                             f'The field rank is {len(field.shape)}, '
                             f'but the dimension index of "{s}" = {i}',
-                            level='error')
+                            level='warning')
                 else:
                     try:
                         s = int(s)
@@ -710,7 +724,7 @@ class FieldValidator(Validator):
                         self.log(f'The field has the correct size of {s}')
                     else:
                         self.log(f'The field has size {field.shape}, '
-                                 f'should be {s}', level='error')
+                                 f'should be {s}', level='warning')
     
     def check_enumeration(self, field, enumerations):
         """
@@ -943,6 +957,8 @@ def validate_file(filename, path=None, definitions=None):
     else:
         log(f'\nTotal number of errors: {logger.total["error"]}\n',
             level='all')
+    
+    return (logger.total['warning'], logger.total['error'])
 
 
 
@@ -1175,6 +1191,8 @@ def validate_application(filename, path=None, application=None,
     else:
         log(f'\nTotal number of errors: {logger.total["error"]}\n',
             level='all')
+
+    return (logger.total['warning'], logger.total['error'])
 
 
 def inspect_base_class(base_class, definitions=None):
