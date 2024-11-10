@@ -6,6 +6,7 @@
 # The full license is in the file COPYING, distributed with this software.
 # -----------------------------------------------------------------------------
 import logging
+import os
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -86,6 +87,8 @@ class Validator():
                 self.definitions = definitions.resolve()
             else:
                 self.definitions = definitions
+        elif 'NX_DEFINITIONS' in os.environ:
+            self.definitions = Path(os.environ['NX_DEFINITIONS']).resolve()
         else:
             self.definitions = package_files('nxvalidate.definitions')
         self.baseclasses = self.definitions / 'base_classes'
