@@ -22,7 +22,7 @@ keywords = ["data format", "HDF5", "neutron scattering", "x-ray scattering"]
 requires-python = ">=3.8"
 dependencies = [
   "nexusformat",
-  "colored",
+  "colored >= 2.0.0",
   "importlib_resources; python_version <= '3.9'"
 ]
 
