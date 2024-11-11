@@ -24,6 +24,25 @@ from nexusformat.nexus.tree import string_dtype
 name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
 
+def get_logger():
+    """
+    Returns a logger instance and sets the log level to DEBUG.
+
+    The logger has a stream handler that writes to sys.stdout.
+
+    Returns
+    -------
+    logger : logging.Logger
+        A logger instance.
+    """
+    logger = logging.getLogger("NXValidate")
+    stream_handler = StreamHandler(stream=sys.stdout)
+    stream_handler.setFormatter(ColorFormatter('%(message)s'))    
+    logger.addHandler(stream_handler)
+    logger.setLevel(logging.WARNING)
+    logger.total = {'warning': 0, 'error': 0}
+    return logger
+
 def is_valid_name(name):
     """
     Checks if a given name is valid according to the defined name pattern.
