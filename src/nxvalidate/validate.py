@@ -7,40 +7,19 @@
 # -----------------------------------------------------------------------------
 import logging
 import os
-import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from nexusformat.nexus import (NeXusError, NXentry, NXfield, NXgroup, NXlink,
                                NXsubentry, nxopen)
 
-from .utils import (ColorFormatter, StreamHandler, check_dimension_sizes,
-                    check_nametype, definitions_path, is_valid_bool,
-                    is_valid_char, is_valid_char_or_number, is_valid_complex,
-                    is_valid_float, is_valid_int, is_valid_iso8601,
-                    is_valid_name, is_valid_number, is_valid_posint,
-                    is_valid_uint, match_strings, merge_dicts, package_files,
-                    readaxes, strip_namespace, xml_to_dict)
-
-
-def get_logger():
-    """
-    Returns a logger instance and sets the log level to DEBUG.
-
-    The logger has a stream handler that writes to sys.stdout.
-
-    Returns
-    -------
-    logger : logging.Logger
-        A logger instance.
-    """
-    logger = logging.getLogger("NXValidate")
-    stream_handler = StreamHandler(stream=sys.stdout)
-    stream_handler.setFormatter(ColorFormatter('%(message)s'))    
-    logger.addHandler(stream_handler)
-    logger.setLevel(logging.WARNING)
-    logger.total = {'warning': 0, 'error': 0}
-    return logger
+from .utils import (check_dimension_sizes, check_nametype, definitions_path,
+                    get_logger, is_valid_bool, is_valid_char,
+                    is_valid_char_or_number, is_valid_complex, is_valid_float,
+                    is_valid_int, is_valid_iso8601, is_valid_name,
+                    is_valid_number, is_valid_posint, is_valid_uint,
+                    match_strings, merge_dicts, package_files, readaxes,
+                    strip_namespace, xml_to_dict)
 
 
 logger = get_logger()
