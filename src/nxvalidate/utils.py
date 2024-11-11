@@ -17,6 +17,7 @@ else:
     from importlib.resources import files as package_files
 
 import numpy as np
+from colored import Fore, Style
 from dateutil.parser import parse
 from nexusformat.nexus.tree import string_dtype
 
@@ -491,20 +492,15 @@ class StreamHandler(logging.StreamHandler):
 
 
 class ColorFormatter(logging.Formatter):
-    orange = "\x1b[1m\x1b[38;2;255;128;0m"
-    red = "\x1b[1;31m\x1b[4:0m"
-    reset = "\x1b[0m"
-
-    format_string = "%(message)s"
-    clear = "\x1b[0m"
-
-    FORMATS = {
-        logging.INFO: format_string,
-        logging.WARNING: orange + format_string + reset,
-        logging.ERROR: red + format_string + reset,
-        logging.CRITICAL: format_string
+    COLORS = {
+        'DEBUG': Fore.blue,
+        'INFO': Style.reset,
+        'WARNING': Fore.rgb(255, 165, 0) + Style.BOLD,
+        'ERROR': Fore.red + Style.BOLD,
+        'CRITICAL': Style.reset
     }
+    
     def format(self, record):
-        level = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(level)
-        return formatter.format(record)
+        log_color = self.COLORS.get(record.levelname, Style.reset)
+        message = super().format(record)
+        return f"{log_color}{message}{Style.reset}"
