@@ -21,7 +21,8 @@ from colored import Fore, Style
 from dateutil.parser import parse
 from nexusformat.nexus.tree import string_dtype
 
-name_pattern = re.compile('^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
+
+name_pattern = re.compile(r'^[a-zA-Z0-9_]([a-zA-Z0-9_.]*[a-zA-Z0-9_])?$')
 
 
 def get_logger():
