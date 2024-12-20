@@ -116,6 +116,19 @@ class Validator():
             return {}
 
     def is_valid_link(self, item):
+        """
+        Checks if the target to an external link exists.
+
+        Parameters
+        ----------
+        item : NXlink or NXfield
+            The item to check.
+
+        Returns
+        -------
+        bool
+            True if the target exists, False otherwise.
+        """
         if item.is_external():
             target = f'{item._filename}[{item._target}]'
         else:
@@ -180,12 +193,15 @@ class GroupValidator(Validator):
 
     def __init__(self, nxclass, definitions=None):
         """
-        Initialize a GroupValidator instance with the given NeXus class.
+        Initializes the GroupValidator instance.
 
         Parameters
         ----------
         nxclass : str
-            The NeXus class of the group to be validated.
+            The name of the NeXus class for which to create a validator.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
         """
         super().__init__(definitions=definitions)
         self.nxclass = nxclass
@@ -424,12 +440,18 @@ class GroupValidator(Validator):
 
     def check_symbols(self, indent=None):
         """
-        Checks for inconsistent values in the symbols dictionary.
+        Checks the values of all symbols in the symbols dictionary.
 
-        If all values are the same, prints a message at the 'info' level.
-        If all values are the same to within ±1, prints a message at the
-        'info' level. If two values differ by more than 1, prints a
-        message at the 'error' level.
+        This checks for consistency of values of all symbols in the
+        symbols dictionary. If the values are all the same, a message is
+        logged at the "info" level. If the values are not all the same,
+        but all differ by at most 1, a message is logged at the "info"
+        level. Otherwise, a message is logged at the "warning" level.
+
+        Parameters
+        ----------
+        indent : int, optional
+            The indentation level for logging (default is 0).
         """
         if indent is not None:
             self.indent = indent
@@ -662,7 +684,7 @@ class FieldValidator(Validator):
 
     def check_dimensions(self, field, dimensions):
         """
-        Checks the dimensions of a field against the specified dimensions.
+        Checks the field dimensions against the specified dimensions.
         
         Parameters
         ----------
@@ -792,7 +814,8 @@ class FieldValidator(Validator):
         minOccurs : int, optional
             The minimum number of occurrences. Defaults to None.
         link : bool, optional
-            True if the field is required to be a link. Defaults to False.
+            True if the field is required to be a link. Defaults to
+            False.
         indent : int, optional
             The indentation level. Defaults to 0.
         """
@@ -861,12 +884,15 @@ class FileValidator(Validator):
 
     def __init__(self, filename, definitions=None):
         """
-        Initializes a FileValidator instance with a filename.
+        Initializes a FileValidator instance.
 
         Parameters
         ----------
         filename : str
-            The name of the file to be validated.
+            The path to the NeXus file to validate.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
         """
         super().__init__(definitions=definitions)
         self.filepath = Path(filename).resolve()
@@ -899,19 +925,26 @@ class FileValidator(Validator):
 
 def validate_file(filename, path=None, definitions=None):
     """
-    Validate a NeXus file by walking through its tree structure.
+    Validates a NeXus file by walking through its tree structure.
+
+    Each group is validated by its corresponding GroupValidator.
 
     Parameters
     ----------
     filename : str
-        The path to the NeXus file to be validated.
+        The path to the NeXus file to validate.
     path : str, optional
-        The path to the group to start validation from. Defaults to
-        None, which means the entire file will be validated.
+        The path to the group to start validation from (default is
+        None, which means the entire file will be validated).
+    definitions : str, optional
+        The path to the directory containing the NeXus base class
+        definitions (default is None).
 
     Returns
     -------
-    None
+    tuple
+        A tuple containing the total number of warnings and errors
+        encountered while validating the file.
     """
     if not Path(filename).exists():
         logger.error(f'File "{filename}" does not exist')
@@ -948,12 +981,15 @@ class ApplicationValidator(Validator):
 
     def __init__(self, application, definitions=None):
         """
-        Initializes an instance of the ApplicationValidator class.
+        Initializes an ApplicationValidator instance.
 
         Parameters
         ----------
         application : str
-            The name of the application to be validated.
+            The name of the application definition to load.
+        definitions : str, optional
+            The path to the directory containing the NeXus base class
+            definitions (default is None).
         """
         super().__init__(definitions=definitions)
         self.symbols = {}
@@ -1124,17 +1160,34 @@ class ApplicationValidator(Validator):
 def validate_application(filename, path=None, application=None,
                          definitions=None):
     """
-    Validates a NeXus application definition against a given XML schema.
+    Validates a NeXus entry against an application definition.
+
+    This function checks if the provided NeXus entry matches the
+    structure defined in the given application definition. It
+    recursively validates all subgroups and fields within the entry,
+    ensuring that the required components are present and correctly
+    formatted.
 
     Parameters
     ----------
     filename : str
-        The name of the NeXus file to be validated.
+        The path to the NeXus file to validate.
     path : str, optional
-        The path to the NeXus entry to be validated. If not provided,
-        the first NXentry group will be used.
-    """
+        The path to the group to start validation from (default is
+        None, which means the entire file will be validated).
+    application : str, optional
+        The name of the application definition to validate against
+        (default is None).
+    definitions : str, optional
+        The path to the directory containing the NeXus base class
+        definitions (default is None).
 
+    Returns
+    -------
+    tuple
+        A tuple containing the total number of warnings and errors
+        encountered while validating the file.
+    """
     with nxopen(filename) as root:
         if path is None:
             nxpath = root.NXentry[0].nxpath
@@ -1179,12 +1232,15 @@ def validate_application(filename, path=None, application=None,
 
 def inspect_base_class(base_class, definitions=None):
     """
-    Outputs the base class attributes, groups, and fields.
+    Prints the valid components of a NeXus base class.
 
     Parameters
     ----------
     base_class : str
-        The name of the base class to be output.
+        The name of the NeXus base class to inspect.
+    definitions : str or Path, optional
+        The path to the directory containing the NeXus base class
+        definitions (default is None).
     """
     validator = get_validator(base_class, definitions=definitions)
 
